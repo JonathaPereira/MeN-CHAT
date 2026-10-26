@@ -13,6 +13,7 @@ import {
 import { contacts, initialChats, initialProfile } from "@/lib/data/chat";
 import { automatedReply } from "@/lib/auto-reply";
 import { generateUserCode } from "@/lib/user-code";
+import { createDemoId } from "@/lib/demo-id";
 import type { Attachment, Chat, Contact, Profile } from "@/types/chat";
 
 const PROFILE_KEY = "mn-chat-demo-profile-v1";
@@ -114,7 +115,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       (chat) => chat.kind === "person" && chat.memberIds.includes(contact.id),
     );
     if (existing) return existing.id;
-    const id = crypto.randomUUID();
+    const id = createDemoId();
     setChats((current) => [
       ...current,
       {
@@ -130,7 +131,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     return id;
   }
   function createGroup(name: string, memberIds: string[]) {
-    const id = crypto.randomUUID();
+    const id = createDemoId();
     setChats((current) => [
       ...current,
       {
@@ -152,7 +153,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   ) {
     if (!text.trim() && !attachments.length) return;
     const message = {
-      id: crypto.randomUUID(),
+      id: createDemoId(),
       text: text.trim(),
       outgoing: true,
       time: new Intl.DateTimeFormat("pt-BR", {
@@ -177,7 +178,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       chatId,
       setTimeout(() => {
         const reply = {
-          id: crypto.randomUUID(),
+          id: createDemoId(),
           text: automatedReply(text, attachments.length > 0),
           outgoing: false,
           author: "Assistente de teste",

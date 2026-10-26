@@ -112,3 +112,17 @@ test("assistente responde em português e identifica prévias de arquivos locais
   assert.match(automatedReply("qualquer mensagem", false), /automática/);
   assert.match(automatedReply("", true), /nenhum arquivo foi enviado/);
 });
+
+test("IDs locais usam UUID v4 sem depender da API exclusiva de HTTPS", async () => {
+  const { createDemoId } = await import("../lib/demo-id.ts");
+  const ids = new Set();
+  for (let i = 0; i < 1000; i++) {
+    const id = createDemoId();
+    assert.match(
+      id,
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    assert.ok(!ids.has(id));
+    ids.add(id);
+  }
+});

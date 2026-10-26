@@ -16,6 +16,7 @@ import {
   formatFileSize,
 } from "@/lib/attachments";
 import { useDemo } from "@/components/demo-provider";
+import { createDemoId } from "@/lib/demo-id";
 import type { Attachment } from "@/types/chat";
 
 export function Composer({ chatId }: { chatId: string }) {
@@ -48,7 +49,7 @@ export function Composer({ chatId }: { chatId: string }) {
         continue;
       }
       next.push({
-        id: crypto.randomUUID(),
+        id: createDemoId(),
         name: file.name,
         size: file.size,
         kind: result.kind,

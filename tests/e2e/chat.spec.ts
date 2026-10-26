@@ -70,13 +70,11 @@ test("tema, convite, cadastro de teste e perfil persistente sem armazenar creden
   await page
     .getByLabel("Status personalizado")
     .fill("Testando meu novo chat 🌿");
-  await page
-    .getByLabel("Arquivo da foto de perfil")
-    .setInputFiles({
-      name: "corrompida.png",
-      mimeType: "image/png",
-      buffer: Buffer.from("imagem inválida"),
-    });
+  await page.getByLabel("Arquivo da foto de perfil").setInputFiles({
+    name: "corrompida.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("imagem inválida"),
+  });
   await expect(page.locator("p[role=alert]")).toContainText(
     "Não foi possível ler esta imagem",
   );
@@ -350,4 +348,37 @@ test("vídeo e áudio locais carregam e reproduzem sem upload", async ({
     )
     .toBeGreaterThan(0);
   await noHorizontalOverflow(page);
+});
+
+test("mensagens, grupos e anexos funcionam sem randomUUID como no acesso HTTP por Wi-Fi", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(Crypto.prototype, "randomUUID", {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  await openAssistant(page);
+  expect(await page.evaluate(() => typeof crypto.randomUUID)).toBe("undefined");
+  await page.getByLabel("Mensagem", { exact: true }).fill("Teste por Wi-Fi");
+  await page.getByRole("button", { name: "Enviar mensagem de teste" }).click();
+  await expect(page.getByRole("log")).toContainText(
+    "Mensagem de teste recebida!",
+  );
+  await backToList(page);
+  await page.getByRole("button", { name: "Criar grupo", exact: true }).click();
+  await page.getByLabel("Nome do grupo").fill("Grupo Wi-Fi");
+  await page.getByRole("checkbox", { name: /Ana Oliveira/ }).check();
+  await page.getByRole("button", { name: "Criar grupo de teste" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Grupo Wi-Fi" }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Selecionar anexos", { exact: true })
+    .setInputFiles({ name: "foto.png", mimeType: "image/png", buffer: png });
+  await page.getByRole("button", { name: "Enviar mensagem de teste" }).click();
+  await expect(page.getByRole("log")).toContainText(
+    "nenhum arquivo foi enviado para a nuvem",
+  );
 });

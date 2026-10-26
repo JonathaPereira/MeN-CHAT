@@ -17,6 +17,23 @@ Quando aparecer `Ready`, abra `http://localhost:3000` no seu navegador. Mantenha
 
 Em Linux/macOS, com Node.js 24, use `npm ci` e `npm run dev`. `.nvmrc` fixa a versão principal. `.npmrc` configura cache em `/tmp` para a nuvem; o comando Windows acima sobrescreve essa opção.
 
+## Abrir no celular pelo mesmo Wi-Fi
+
+1. Conecte o Windows e o celular à mesma rede Wi-Fi de confiança.
+2. No terminal do projeto, pare o servidor com Ctrl+C e inicie:
+
+   ```bat
+   npm.cmd run dev -- --hostname 0.0.0.0
+   ```
+
+3. Abra outra janela do Prompt de Comando no Windows e execute `ipconfig`. Procure o **Endereço IPv4** do adaptador Wi-Fi conectado.
+4. No navegador do celular, abra `http://SEU-IPV4:3000`. Exemplo: se o IPv4 for `192.168.1.10`, abra `http://192.168.1.10:3000`.
+5. Se o Firewall do Windows perguntar, permita Node.js em **redes privadas**. Mantenha o computador ligado e o terminal aberto. Redes de convidados podem impedir a comunicação entre aparelhos.
+
+O endereço `localhost` no celular aponta para o próprio celular; use o IPv4 do Windows. O acesso acima serve para testar na rede local. Não configure redirecionamento de portas no roteador. Para acessar fora do Wi-Fi, será necessário hospedar uma versão de demonstração, o que ainda não foi feito.
+
+Perfil e conversas continuam locais a cada navegador; o celular conversa com o assistente de teste, sem sincronização com o computador. O código usa `crypto.getRandomValues` para IDs temporários e não depende de `crypto.randomUUID`, que exige contexto seguro e não está disponível normalmente por HTTP em um endereço da rede local.
+
 ## O que testar
 
 1. **Tema:** use sol/lua desde o login. A preferência é salva no navegador; sem preferência, segue o sistema.
