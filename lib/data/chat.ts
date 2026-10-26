@@ -1,0 +1,163 @@
+import type { Chat, Contact, Profile } from "@/types/chat";
+export const initialProfile: Profile = {
+  name: "Você",
+  status: "Por perto, mesmo de longe. 🌿",
+  photo: "",
+  code: "MN2026",
+};
+export const contacts: Contact[] = [
+  {
+    id: "assistant",
+    name: "Assistente M&N",
+    code: "BOT202",
+    status: "Respostas automáticas para seus testes 🤖",
+    color: "sage",
+  },
+  {
+    id: "ana",
+    name: "Ana Oliveira",
+    code: "A1B2C3",
+    status: "Colecionando bons momentos ☀️",
+    color: "peach",
+  },
+  {
+    id: "lucas",
+    name: "Lucas Santos",
+    code: "L4C5S6",
+    status: "Uma música e um café 🎧",
+    color: "blue",
+  },
+  {
+    id: "julia",
+    name: "Júlia Costa",
+    code: "J7U8C9",
+    status: "Vivendo um dia de cada vez 🌱",
+    color: "sage",
+  },
+  {
+    id: "pedro",
+    name: "Pedro Lima",
+    code: "P3D4R5",
+    status: "Bora marcar alguma coisa?",
+    color: "lavender",
+  },
+];
+export const initialChats: Chat[] = [
+  {
+    id: "assistant-chat",
+    name: "Assistente M&N",
+    kind: "person",
+    memberIds: ["assistant"],
+    color: "sage",
+    unread: 0,
+    messages: [
+      {
+        id: "b1",
+        text: "Oi! 👋 Sou o assistente de teste. Escreva uma mensagem e eu respondo automaticamente. Experimente também o modo escuro e os anexos! Tudo fica neste navegador.",
+        outgoing: false,
+        author: "Assistente de teste",
+        time: "Agora",
+        attachments: [],
+      },
+    ],
+  },
+  {
+    id: "familia",
+    name: "Família reunida",
+    kind: "group",
+    memberIds: ["ana", "lucas", "julia"],
+    color: "sage",
+    unread: 2,
+    messages: [
+      {
+        id: "f1",
+        text: "Bom dia, família! ☀️",
+        outgoing: false,
+        author: "Ana",
+        time: "09:30",
+        attachments: [],
+      },
+      {
+        id: "f2",
+        text: "Bom dia! Como vocês estão?",
+        outgoing: true,
+        time: "09:32",
+        attachments: [],
+      },
+      {
+        id: "f3",
+        text: "Domingo tem almoço por aqui! Quem vem? 🥗",
+        outgoing: false,
+        author: "Ana",
+        time: "12:42",
+        attachments: [],
+      },
+    ],
+  },
+  {
+    id: "ana-chat",
+    name: "Ana Oliveira",
+    kind: "person",
+    memberIds: ["ana"],
+    color: "peach",
+    unread: 1,
+    messages: [
+      {
+        id: "a1",
+        text: "Oi! Tudo bem por aí?",
+        outgoing: false,
+        time: "11:35",
+        attachments: [],
+      },
+      {
+        id: "a2",
+        text: "Tudo sim! E com você?",
+        outgoing: true,
+        time: "11:36",
+        attachments: [],
+      },
+      {
+        id: "a3",
+        text: "Achei aquela foto da nossa viagem! Precisamos repetir. ✨",
+        outgoing: false,
+        time: "11:38",
+        attachments: [],
+      },
+    ],
+  },
+  {
+    id: "amigos",
+    name: "Os de sempre",
+    kind: "group",
+    memberIds: ["pedro", "ana"],
+    color: "lavender",
+    unread: 0,
+    messages: [
+      {
+        id: "o1",
+        text: "Quem topa um filme hoje? 🍿",
+        outgoing: false,
+        author: "Pedro",
+        time: "10:15",
+        attachments: [],
+      },
+    ],
+  },
+  {
+    id: "lucas-chat",
+    name: "Lucas Santos",
+    kind: "person",
+    memberIds: ["lucas"],
+    color: "blue",
+    unread: 0,
+    messages: [
+      {
+        id: "l1",
+        text: "Valeu pela dica! Depois te conto.",
+        outgoing: false,
+        time: "Ontem",
+        attachments: [],
+      },
+    ],
+  },
+];
