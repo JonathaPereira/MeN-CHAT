@@ -7,10 +7,12 @@ export function Modal({
   title,
   onClose,
   children,
+  drawer = false,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  drawer?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -29,7 +31,7 @@ export function Modal({
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
-      className="app-dialog"
+      className={`app-dialog ${drawer ? "drawer-dialog" : ""}`}
     >
       <div className="flex items-center justify-between gap-4 border-b border-[var(--line)] px-6 py-4">
         <h2 id="dialog-title" className="text-lg font-semibold">
@@ -44,7 +46,7 @@ export function Modal({
           <X size={20} />
         </button>
       </div>
-      <div className="p-6">{children}</div>
+      <div className={drawer ? "drawer-content" : "p-6"}>{children}</div>
     </dialog>
   );
 }

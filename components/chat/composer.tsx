@@ -7,25 +7,28 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { File, Paperclip, Send, X } from "lucide-react";
+import { File, Paperclip, Send, Mic, X } from "lucide-react";
 import {
   attachmentAccept,
-  attachmentPolicy,
   MAX_ATTACHMENTS,
   validateAttachment,
   formatFileSize,
 } from "@/lib/attachments";
+import { VoiceRecorder } from "./voice-recorder";
+import { usePreferences } from "@/components/preferences-provider";
 import { useDemo } from "@/components/demo-provider";
 import { createDemoId } from "@/lib/demo-id";
 import type { Attachment } from "@/types/chat";
 
 export function Composer({ chatId }: { chatId: string }) {
+  const { settings } = usePreferences();
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const audioInput = useRef<HTMLInputElement>(null);
   const { sendMessage, fileUrl, releaseUrl } = useDemo();
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const pendingRef = useRef<Attachment[]>([]);
   const [error, setError] = useState("");
-  const [showLimits, setShowLimits] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   useEffect(
     () => () => {
@@ -36,6 +39,9 @@ export function Composer({ chatId }: { chatId: string }) {
   function changeFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
+    addFiles(files);
+  }
+  function addFiles(files: File[]) {
     if (files.length + attachments.length > MAX_ATTACHMENTS) {
       setError(`Anexe no máximo ${MAX_ATTACHMENTS} arquivos por mensagem.`);
       return;
@@ -79,27 +85,6 @@ export function Composer({ chatId }: { chatId: string }) {
   }
   return (
     <div className="chat-composer">
-      <div className="mb-2 flex items-center justify-between gap-2 text-[10px] text-[var(--muted)]">
-        <span>Resposta automática · apenas neste navegador</span>
-        <button
-          type="button"
-          onClick={() => setShowLimits(!showLimits)}
-          className="min-h-7 underline underline-offset-2"
-          aria-expanded={showLimits}
-        >
-          Limites de anexos
-        </button>
-      </div>
-      {showLimits && (
-        <div className="mb-3 rounded-xl bg-[var(--canvas)] p-3 text-xs leading-relaxed text-[var(--muted)]">
-          {Object.values(attachmentPolicy).map((policy) => (
-            <p key={policy.label}>{policy.label}</p>
-          ))}
-          <p className="mt-2">
-            Até 5 arquivos por mensagem. Prévia local, sem upload.
-          </p>
-        </div>
-      )}
       {attachments.length > 0 && (
         <ul className="mb-3 space-y-2" aria-label="Anexos selecionados">
           {attachments.map((item) => (
@@ -128,6 +113,25 @@ export function Composer({ chatId }: { chatId: string }) {
           {error}
         </p>
       )}
+      {voiceOpen && (
+        <VoiceRecorder
+          onAttach={(file) => addFiles([file])}
+          onClose={() => setVoiceOpen(false)}
+          onChooseFile={() => audioInput.current?.click()}
+        />
+      )}
+      <input
+        ref={audioInput}
+        type="file"
+        accept="audio/*"
+        aria-label="Selecionar arquivo de áudio"
+        className="sr-only"
+        tabIndex={-1}
+        onChange={(event) => {
+          changeFiles(event);
+          setVoiceOpen(false);
+        }}
+      />
       <form onSubmit={submit} className="flex items-end gap-2">
         <input
           ref={input}
@@ -160,6 +164,7 @@ export function Composer({ chatId }: { chatId: string }) {
           className="message-input"
           onKeyDown={(e) => {
             if (
+              settings.enterToSend &&
               e.key === "Enter" &&
               !e.shiftKey &&
               !e.nativeEvent.isComposing
@@ -169,6 +174,15 @@ export function Composer({ chatId }: { chatId: string }) {
             }
           }}
         />
+        <button
+          type="button"
+          className="icon-button mb-1 shrink-0"
+          aria-label="Gravar mensagem de voz"
+          onClick={() => setVoiceOpen(true)}
+          disabled={voiceOpen}
+        >
+          <Mic size={21} />
+        </button>
         <button
           type="submit"
           className="send-button mb-0.5 shrink-0"

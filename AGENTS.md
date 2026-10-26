@@ -21,11 +21,14 @@
 - Não registre senhas, tokens ou dados de formulário. Não grave segredos no repositório.
 - Somente URL e chave publicável do Supabase podem usar `NEXT_PUBLIC_`. Chaves administrativas/secretas nunca podem estar no cliente.
 - Não ative as fábricas Supabase sem nova solicitação de integração. Na integração futura, configure renovação de sessão no servidor conforme documentação oficial, autorização e RLS antes de dados reais.
-- As rotas atuais são demonstrações públicas, não áreas protegidas. Perfil e tema ficam no armazenamento local, sem e-mail ou senha; mensagens, grupos e anexos são temporários na memória da aba. Respostas automáticas devem ser identificadas como simulação. Não prometa segurança, privacidade operacional ou criptografia ponta a ponta ainda não implementadas.
+- As rotas atuais são demonstrações públicas, não áreas protegidas. Perfil, tema e preferências ficam no armazenamento local, sem e-mail ou senha; mensagens, grupos e anexos são temporários na memória da aba. Respostas automáticas devem ser identificadas como simulação. Não prometa segurança, privacidade operacional ou criptografia ponta a ponta ainda não implementadas.
 
 ## Interface e validação
 
 - Layout responsivo, HTML semântico, rótulos nos campos, foco visível, navegação por teclado e alvos de toque adequados.
+- A conversa ocupa toda a janela; lista e menus são abertos por botões. Configurações devem ter efeito real na demonstração ou informar a limitação.
+- Gravação usa MediaRecorder mediante ação e permissão explícitas. Libere streams ao parar, sair ou cancelar, inclusive se a permissão resolver depois do fechamento. HTTP na rede local não oferece gravação; mantenha a opção de anexar áudio.
+- Notificações de sistema só pedem permissão por botão, exigem contexto seguro e não são push com o app fechado. Download automático controla prévias, nunca salvamento em disco sem ação. Não prometa suporte móvel universal.
 - Identifique dados fictícios e funcionalidades indisponíveis; evite controles que pareçam executar ações reais.
 - Antes de concluir: `npm run lint`, `npm run typecheck`, `npm run build`, `npm test`, `npm run test:e2e` e smoke test das páginas e interações em desktop e celular quando houver navegador disponível.
 - Informe arquivos alterados, verificações, limitações e o que ficou fora da etapa. Não avance automaticamente.

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PreferencesProvider } from "@/components/preferences-provider";
 import { DemoProvider } from "@/components/demo-provider";
 
 export const metadata: Metadata = {
@@ -20,12 +21,14 @@ export default function RootLayout({
     <html lang="pt-BR" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <DemoProvider>
-            <a className="skip-link" href="#conteudo">
-              Pular para o conteúdo
-            </a>
-            {children}
-          </DemoProvider>
+          <PreferencesProvider>
+            <DemoProvider>
+              <a className="skip-link" href="#conteudo">
+                Pular para o conteúdo
+              </a>
+              {children}
+            </DemoProvider>
+          </PreferencesProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,12 +1,42 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { usePreferences } from "@/components/preferences-provider";
+import { shouldLoadMedia } from "@/lib/preferences";
 import Image from "next/image";
 import { Download, FileText } from "lucide-react";
 import type { Attachment } from "@/types/chat";
 import { formatFileSize } from "@/lib/attachments";
 
 export function AttachmentPreview({ attachment }: { attachment: Attachment }) {
+  const { settings } = usePreferences();
+  const [manual, setManual] = useState(false);
+  const audio = useRef<HTMLAudioElement>(null);
+  const visible =
+    attachment.kind === "document" ||
+    manual ||
+    shouldLoadMedia(settings, attachment.kind);
+  useEffect(() => {
+    if (audio.current) audio.current.playbackRate = settings.playbackRate;
+  }, [settings.playbackRate, visible]);
   return (
     <div className="attachment-preview">
-      {attachment.kind === "image" && (
+      {!visible && (
+        <button
+          type="button"
+          className="secondary-button w-full"
+          onClick={() => setManual(true)}
+          aria-label={`Carregar ${attachment.kind === "image" ? "foto" : attachment.kind === "audio" ? "áudio" : "vídeo"} ${attachment.name}`}
+        >
+          Carregar{" "}
+          {attachment.kind === "image"
+            ? "foto"
+            : attachment.kind === "audio"
+              ? "áudio"
+              : "vídeo"}
+        </button>
+      )}
+      {visible && attachment.kind === "image" && (
         <Image
           src={attachment.url}
           alt={attachment.name}
@@ -16,7 +46,7 @@ export function AttachmentPreview({ attachment }: { attachment: Attachment }) {
           className="max-h-60 w-full rounded-xl object-contain"
         />
       )}
-      {attachment.kind === "video" && (
+      {visible && attachment.kind === "video" && (
         <video
           src={attachment.url}
           controls
@@ -25,8 +55,12 @@ export function AttachmentPreview({ attachment }: { attachment: Attachment }) {
           aria-label={`Vídeo: ${attachment.name}`}
         />
       )}
-      {attachment.kind === "audio" && (
+      {visible && attachment.kind === "audio" && (
         <audio
+          ref={audio}
+          onLoadedMetadata={(event) => {
+            event.currentTarget.playbackRate = settings.playbackRate;
+          }}
           src={attachment.url}
           controls
           preload="metadata"

@@ -10,6 +10,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { usePreferences } from "@/components/preferences-provider";
 import { contacts, initialChats, initialProfile } from "@/lib/data/chat";
 import { automatedReply } from "@/lib/auto-reply";
 import { generateUserCode } from "@/lib/user-code";
@@ -59,6 +60,7 @@ type DemoContextValue = {
   profile: Profile;
   chats: Chat[];
   typing: string[];
+  setActiveChat: (id: string | null) => void;
   saveProfile: (profile: Profile) => boolean;
   registerProfile: (name: string) => boolean;
   openPrivate: (contact: Contact) => string;
@@ -75,6 +77,11 @@ type DemoContextValue = {
 const DemoContext = createContext<DemoContextValue | null>(null);
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
+  const { notifyIncoming } = usePreferences();
+  const activeChat = useRef<string | null>(null);
+  const setActiveChat = useCallback((id: string | null) => {
+    activeChat.current = id;
+  }, []);
   const snapshot = useSyncExternalStore(
     subscribe,
     getSnapshot,
@@ -96,6 +103,21 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const markRead = useCallback((chatId: string) => {
+    setChats((current) =>
+      current.map((chat) =>
+        chat.id === chatId && chat.unread > 0 ? { ...chat, unread: 0 } : chat,
+      ),
+    );
+  }, []);
+  useEffect(() => {
+    const visible = () => {
+      if (document.visibilityState === "visible" && activeChat.current)
+        markRead(activeChat.current);
+    };
+    document.addEventListener("visibilitychange", visible);
+    return () => document.removeEventListener("visibilitychange", visible);
+  }, [markRead]);
   const releaseUrl = useCallback((url: string) => {
     URL.revokeObjectURL(url);
     urls.current.delete(url);
@@ -188,10 +210,23 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           }).format(new Date()),
           attachments: [],
         };
+        const away =
+          activeChat.current !== chatId ||
+          document.visibilityState !== "visible";
+        notifyIncoming({
+          chatId,
+          title: chats.find((chat) => chat.id === chatId)?.name || "M&N CHAT",
+          text: reply.text,
+          away,
+        });
         setChats((current) =>
           current.map((chat) =>
             chat.id === chatId
-              ? { ...chat, messages: [...chat.messages, reply] }
+              ? {
+                  ...chat,
+                  unread: away ? chat.unread + 1 : 0,
+                  messages: [...chat.messages, reply],
+                }
               : chat,
           ),
         );
@@ -206,6 +241,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         profile,
         chats,
         typing,
+        setActiveChat,
         saveProfile,
         registerProfile: (name) =>
           saveProfile({
@@ -219,12 +255,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         openPrivate,
         createGroup,
         sendMessage,
-        markRead: (chatId) =>
-          setChats((current) =>
-            current.map((chat) =>
-              chat.id === chatId ? { ...chat, unread: 0 } : chat,
-            ),
-          ),
+        markRead,
         fileUrl: (file) => {
           const url = URL.createObjectURL(file);
           urls.current.add(url);

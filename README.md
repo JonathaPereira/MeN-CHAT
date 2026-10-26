@@ -36,16 +36,27 @@ Perfil e conversas continuam locais a cada navegador; o celular conversa com o a
 
 ## O que testar
 
-1. **Tema:** use sol/lua desde o login. A preferência é salva no navegador; sem preferência, segue o sistema.
+1. **Tema:** use sol/lua desde o login ou no menu do chat. A preferência é salva no navegador; sem preferência, segue o sistema.
 2. **Login e cadastro:** ambos são demonstrações, não autenticação. Para cadastrar um perfil fictício, preencha nome, e-mail, senha com pelo menos oito caracteres, confirmação e convite **AMIGOS20**. Não use sua senha real. E-mail e senha não são enviados nem armazenados.
 3. **Perfil:** edite nome e status, selecione/remova uma foto e salve. O perfil fica somente no navegador atual. A foto é reduzida localmente para até 256 × 256 pixels; aceita JPG/PNG/WebP de até 2 MB.
-4. **Chat automatizado:** em `/conversas`, abra **Assistente M&N**, envie uma mensagem e aguarde cerca de um segundo. É uma resposta programada local, sem IA externa. Os demais contatos são fictícios e também recebem respostas identificadas do assistente para testar a interface.
-5. **Código:** cada novo perfil de demonstração recebe um código de seis letras/números. Em “Nova conversa por código”, teste **A1B2C3** para Ana ou **BOT202** para o assistente. O código público não é senha nem convite. Não existe diretório de usuários reais ou garantia de unicidade entre navegadores.
-6. **Grupos:** clique em “Criar grupo”, informe um nome e selecione ao menos um participante fictício. Você é incluído automaticamente. O assistente também responde nos grupos de teste.
+4. **Chat automatizado:** `/conversas` abre diretamente o **Assistente M&N** em tela inteira. Envie uma mensagem e aguarde cerca de um segundo. O botão de lista no canto superior esquerdo abre as conversas; o botão de três pontos abre os menus. Não há barra lateral fixa nem margens vazias ao redor do chat. É uma resposta programada local, sem IA externa. Os demais contatos são fictícios e também recebem respostas identificadas do assistente para testar a interface.
+5. **Código:** cada novo perfil de demonstração recebe um código de seis letras/números. No menu do chat ou da lista, escolha “Nova conversa por código” e teste **A1B2C3** para Ana ou **BOT202** para o assistente. O código público não é senha nem convite. Não existe diretório de usuários reais ou garantia de unicidade entre navegadores.
+6. **Grupos:** no menu ou na lista de conversas, clique em “Criar grupo”, informe um nome e selecione ao menos um participante fictício. Você é incluído automaticamente. O assistente também responde nos grupos de teste.
 7. **Anexos:** use o clipe, selecione arquivos, remova se desejar e envie a prévia local. Fotos até 5 MB, vídeos até 25 MB, áudios/documentos até 10 MB; no máximo cinco anexos por mensagem. Arquivos não vão para nenhuma nuvem.
-8. **Responsividade:** experimente janela estreita, tema escuro, mensagens longas, Shift+Enter para quebra de linha, grupos e anexos. No celular, use a seta do cabeçalho da conversa para voltar à lista.
+8. **Mensagem de voz:** clique no microfone e em “Iniciar gravação”. Após permitir o microfone, grave até 2 minutos, pare, ouça e escolha descartar ou anexar. Só o botão de envio adiciona o áudio à conversa. O microfone é liberado ao parar, fechar ou trocar de conversa. Pelo celular em HTTP no Wi-Fi, a gravação não está disponível: use “Escolher áudio do aparelho”. Gravação pelo microfone exige HTTPS ou localhost, além de suporte a MediaRecorder e permissão.
+9. **Configurações:** menu do chat → Configurações. Os submenus são Notificações, Dados e armazenamento, Conversas e voz e Aparência. As preferências são locais ao navegador e valem para a mesma interface web em computador e celular.
+10. **Responsividade:** experimente janela estreita, tema escuro, mensagens longas, Shift+Enter para quebra de linha, grupos e anexos. Use o botão de lista no cabeçalho para abrir ou trocar uma conversa; Escape ou o botão de fechar recolhe os menus.
 
-Conversas, grupos, mensagens e anexos existem somente na memória desta aba e desaparecem ao recarregar. Nome, status, foto e código do perfil persistem no armazenamento local desse navegador. Para apagar esse perfil de teste, limpe os dados do site nas configurações do navegador. Tema e perfil são compartilhados entre abas deste navegador; não há sincronização de mensagens.
+Conversas, grupos, mensagens e anexos existem somente na memória desta aba e desaparecem ao recarregar. Preferências, nome, status, foto e código do perfil persistem no armazenamento local desse navegador. Para apagar esse perfil de teste, limpe os dados do site nas configurações do navegador. Tema, perfil e preferências são compartilhados entre abas deste navegador; não há sincronização de mensagens.
+
+## Como as configurações se comportam
+
+- **Notificações:** por padrão, avisos aparecem somente fora da conversa ativa ou com a aba oculta. É possível silenciar cada conversa pelo menu, ativar/desativar avisos, sons e prévia do texto. A prévia vem desativada por padrão.
+- **Sistema e permissões:** a permissão de notificações só é solicitada no botão “Permitir avisos do navegador”. Elas exigem HTTPS/localhost e dependem do suporte do navegador. O botão “Testar notificação” permite conferir o comportamento. Em navegadores que não aceitam a API nesta aba, o aplicativo avisa e usa o alerta interno.
+- **Limitações:** não há notificações push com a aba/app fechado, nem service worker. iOS e outros navegadores móveis podem exigir instalação como PWA para avisos do sistema; essa etapa ainda não foi implementada. Sons dependem de interação prévia com a página, das políticas de reprodução e do modo silencioso do aparelho.
+- **Download automático:** controla o carregamento das prévias de fotos, vídeos e áudios. Desativado, aparece um botão para carregar cada mídia. “Economia de dados” desativa todas as prévias automáticas. Não há salvamento automático na pasta Downloads; o link para baixar continua manual e ouvir um áudio não dispara download em disco. Nesta demonstração os arquivos são `blob:` locais, sem upload ou tráfego de mídia remota.
+- **Texto e voz:** Enter para enviar pode ser desligado; o botão de enviar continua disponível. Velocidade de reprodução: 1×, 1,25×, 1,5× e 2×. A redução de ruído é solicitada ao aparelho ao iniciar a gravação e depende de suporte.
+- **Aparência:** tema claro, escuro ou do sistema e texto pequeno, padrão ou grande no chat.
 
 ## Verificações automatizadas
 
@@ -63,7 +74,7 @@ npx.cmd playwright install chromium
 npm.cmd run test:e2e
 ```
 
-`npm test` usa o runner nativo do Node.js 24 para códigos, limites de arquivos e respostas programadas. `npm run test:e2e` faz o build e inicia temporariamente o servidor de produção na porta 3100. A suíte Playwright cobre desktop (1440 × 900), celular (390 × 664) e tela pequena (320 × 640), sem testar aparelhos físicos. Deixe a porta 3100 livre. Os testes de navegador precisam de acesso local, sem credenciais externas.
+`npm test` usa o runner nativo do Node.js 24 para códigos, limites de arquivos, respostas programadas e regras de preferências/notificações. `npm run test:e2e` faz o build e inicia temporariamente o servidor de produção na porta 3100. A suíte Playwright cobre desktop (1440 × 900), celular (390 × 664) e tela pequena (320 × 640), sem testar aparelhos físicos. A gravação usa um microfone sintético fornecido pelo Chromium de teste; não acessa o microfone real de quem executa a suíte. Há verificações de gravação, prévia, liberação do microfone, permissão negada, menus, preferências e notificações de sistema com API simulada. Deixe a porta 3100 livre. Os testes de navegador precisam de acesso local, sem credenciais externas.
 
 Na nuvem, é possível reutilizar o Chromium instalado:
 
@@ -76,7 +87,7 @@ Para produção local: `npm run build` seguido de `npm start`. Isso não publica
 ## Estrutura
 
 ```text
-app/                   Rotas /login, /cadastro, /perfil e /conversas
+app/                   Rotas /login, /cadastro, /perfil, /conversas e /configuracoes
 components/chat/       Lista, diálogos, mensagens, compositor e anexos
 components/            Perfil, formulários, tema e estado de demonstração
 lib/data/              Perfis e mensagens fictícios
@@ -95,4 +106,4 @@ Não é necessário configurar Supabase nesta etapa. As fábricas em `lib/supaba
 
 O convite AMIGOS20 valida somente o roteiro de demonstração: não protege rotas nem libera conta real. A liberação de usuários exige Supabase Auth com convites administrativos, limite de membros, unicidade de códigos no banco, autorização, RLS e armazenamento privado. Nada disso está ativo nesta versão. Nunca use `service_role`, secret keys ou credenciais administrativas em variáveis `NEXT_PUBLIC_`.
 
-Veja [anexos e limites da Cloudflare](docs/anexos-e-cloudflare.md). A política do aplicativo foi definida para os testes; nenhum serviço Cloudflare foi provisionado. PWA, chamadas, notificações, autenticação real e comunicação entre pessoas ficam para etapas futuras.
+Veja [anexos e limites da Cloudflare](docs/anexos-e-cloudflare.md). A política do aplicativo foi definida para os testes; nenhum serviço Cloudflare foi provisionado. PWA, chamadas, push com o app fechado, autenticação real e comunicação entre pessoas ficam para etapas futuras.

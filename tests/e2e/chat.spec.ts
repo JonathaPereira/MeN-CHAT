@@ -3,11 +3,13 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function openAssistant(page: Page) {
   await page.goto("/conversas");
-  await page.getByRole("button", { name: /Assistente M&N/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Assistente M&N", exact: true }),
+  ).toBeVisible();
 }
 async function backToList(page: Page) {
   const button = page.getByRole("button", {
-    name: "Voltar à lista de conversas",
+    name: "Abrir lista de conversas",
   });
   if (await button.isVisible()) await button.click();
 }
@@ -152,6 +154,7 @@ test("busca por código, conversa privada, grupo e filtros", async ({
   page,
 }) => {
   await page.goto("/conversas");
+  await backToList(page);
   await page.getByRole("button", { name: "Nova conversa por código" }).click();
   await page.getByLabel("Código do usuário").fill("ZZ9999");
   await page
@@ -278,10 +281,12 @@ test("janelas modais suportam Escape e login funciona sem sessão real", async (
   await page.getByLabel("Senha", { exact: true }).fill("senha-ficticia");
   await page.getByRole("button", { name: "Entrar na demonstração" }).click();
   await expect(page).toHaveURL(/\/conversas$/);
+  await backToList(page);
   await page.getByRole("button", { name: "Nova conversa por código" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button", { name: "Abrir menu do chat" }).click();
   await page.getByRole("button", { name: "Ativar modo claro" }).click();
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await noHorizontalOverflow(page);

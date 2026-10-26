@@ -126,3 +126,55 @@ test("IDs locais usam UUID v4 sem depender da API exclusiva de HTTPS", async () 
     ids.add(id);
   }
 });
+
+test("preferências rejeitam valores inválidos e mantêm padrões seguros", async () => {
+  const { parsePreferences } = await import("../lib/preferences.ts");
+  assert.equal(parsePreferences("quebrado").messagePreview, false);
+  const parsed = parsePreferences(
+    JSON.stringify({
+      textSize: "enorme",
+      playbackRate: 900,
+      notificationsEnabled: "sim",
+      autoAudio: false,
+      mutedChatIds: ["ana", 42],
+    }),
+  );
+  assert.equal(parsed.textSize, "normal");
+  assert.equal(parsed.playbackRate, 1);
+  assert.equal(parsed.notificationsEnabled, true);
+  assert.equal(parsed.autoAudio, false);
+  assert.deepEqual(parsed.mutedChatIds, ["ana"]);
+});
+test("notificações respeitam conversa ativa, controle geral e silenciamento", async () => {
+  const { defaultPreferences: settings, shouldNotify } =
+    await import("../lib/preferences.ts");
+  assert.equal(shouldNotify(settings, "ana", false), false);
+  assert.equal(shouldNotify(settings, "ana", true), true);
+  assert.equal(
+    shouldNotify({ ...settings, notificationsEnabled: false }, "ana", true),
+    false,
+  );
+  assert.equal(
+    shouldNotify({ ...settings, mutedChatIds: ["ana"] }, "ana", true),
+    false,
+  );
+  assert.equal(
+    shouldNotify({ ...settings, onlyWhenAway: false }, "ana", false),
+    true,
+  );
+});
+test("economia de dados bloqueia prévias automáticas de todos os tipos de mídia", async () => {
+  const { defaultPreferences: settings, shouldLoadMedia } =
+    await import("../lib/preferences.ts");
+  for (const kind of ["image", "audio", "video"]) {
+    assert.equal(shouldLoadMedia(settings, kind), true);
+    assert.equal(
+      shouldLoadMedia({ ...settings, dataSaver: true }, kind),
+      false,
+    );
+  }
+  assert.equal(
+    shouldLoadMedia({ ...settings, autoAudio: false }, "audio"),
+    false,
+  );
+});

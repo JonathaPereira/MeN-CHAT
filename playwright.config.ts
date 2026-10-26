@@ -11,9 +11,12 @@ export default defineConfig({
     launchOptions: {
       executablePath:
         process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
-      args: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
-        ? ["--no-sandbox"]
-        : [],
+      args: [
+        "--use-fake-device-for-media-stream",
+        ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? ["--no-sandbox"]
+          : []),
+      ],
     },
   },
   projects: [

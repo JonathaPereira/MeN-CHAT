@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ArrowLeft, Bot, Check } from "lucide-react";
+import { Menu, MoreHorizontal, Bot, Check } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useDemo } from "@/components/demo-provider";
 import { contacts } from "@/lib/data/chat";
@@ -12,11 +12,20 @@ import { Composer } from "./composer";
 export function ChatPanel({
   chat,
   onBack,
+  onMenu,
+  inactive = false,
 }: {
   chat: Chat;
   onBack: () => void;
+  onMenu: () => void;
+  inactive?: boolean;
 }) {
-  const { typing } = useDemo();
+  const { typing, setActiveChat, markRead } = useDemo();
+  useEffect(() => {
+    setActiveChat(inactive ? null : chat.id);
+    if (!inactive) markRead(chat.id);
+    return () => setActiveChat(null);
+  }, [chat.id, setActiveChat, markRead, inactive]);
   const scroller = useRef<HTMLDivElement>(null);
   const isTyping = typing.includes(chat.id);
   useEffect(() => {
@@ -27,11 +36,11 @@ export function ChatPanel({
     <section className="chat-panel" aria-label={`Conversa com ${chat.name}`}>
       <header className="chat-panel-header">
         <button
-          className="icon-button md:hidden"
+          className="icon-button"
           onClick={onBack}
-          aria-label="Voltar à lista de conversas"
+          aria-label="Abrir lista de conversas"
         >
-          <ArrowLeft size={21} />
+          <Menu size={22} />
         </button>
         <Avatar name={chat.name} color={chat.color} />
         <div className="min-w-0 flex-1">
@@ -47,6 +56,13 @@ export function ChatPanel({
           <Bot size={14} aria-hidden="true" />
           <span className="hidden sm:inline">Teste</span>
         </span>
+        <button
+          className="icon-button"
+          onClick={onMenu}
+          aria-label="Abrir menu do chat"
+        >
+          <MoreHorizontal size={23} />
+        </button>
       </header>
       <div
         ref={scroller}
@@ -91,7 +107,7 @@ export function ChatPanel({
                 />
               ))}
               {message.text && (
-                <p className="whitespace-pre-wrap text-sm leading-relaxed [overflow-wrap:anywhere]">
+                <p className="message-text whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]">
                   {message.text}
                 </p>
               )}
