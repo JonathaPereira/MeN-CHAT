@@ -26,8 +26,8 @@
 ## Interface e validação
 
 - Layout responsivo, HTML semântico, rótulos nos campos, foco visível, navegação por teclado e alvos de toque adequados.
-- A conversa ocupa toda a janela; lista e menus são abertos por botões. Configurações devem ter efeito real na demonstração ou informar a limitação.
-- Gravação usa MediaRecorder mediante ação e permissão explícitas. Libere streams ao parar, sair ou cancelar, inclusive se a permissão resolver depois do fechamento. HTTP na rede local não oferece gravação; mantenha a opção de anexar áudio.
+- No desktop, mantenha usuários/grupos fixos à esquerda e a conversa preenchendo todo o espaço restante até a borda direita, sem limitar a largura da área principal. No celular, alterne entre lista e conversa. Engrenagem e clipe devem estar visíveis; o campo de mensagem tem largura moderada. Configurações devem ter efeito real ou informar a limitação.
+- Gravação começa no clique do microfone e a seta envia diretamente; ouvir antes é opcional, sem confirmação de anexo obrigatória. Use MediaRecorder mediante ação e permissão explícitas. Libere streams ao parar, sair ou cancelar, inclusive se a permissão resolver depois do fechamento. HTTP na rede local não oferece gravação; mantenha a opção de anexar áudio.
 - Notificações de sistema só pedem permissão por botão, exigem contexto seguro e não são push com o app fechado. Download automático controla prévias, nunca salvamento em disco sem ação. Não prometa suporte móvel universal.
 - Identifique dados fictícios e funcionalidades indisponíveis; evite controles que pareçam executar ações reais.
 - Antes de concluir: `npm run lint`, `npm run typecheck`, `npm run build`, `npm test`, `npm run test:e2e` e smoke test das páginas e interações em desktop e celular quando houver navegador disponível.

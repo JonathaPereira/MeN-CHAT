@@ -1,32 +1,32 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Mic, Square, Trash2, Check, Paperclip, X } from "lucide-react";
+import { Mic, Square, Trash2, Send } from "lucide-react";
 import { usePreferences } from "@/components/preferences-provider";
 import { createDemoId } from "@/lib/demo-id";
+import { attachmentPolicy } from "@/lib/attachments";
 
 const MAX_SECONDS = 120;
-const MAX_BYTES = 10_000_000;
 const supportedTypes = [
   "audio/webm;codecs=opus",
   "audio/mp4",
   "audio/ogg;codecs=opus",
   "audio/webm",
 ];
+type Phase = "idle" | "requesting" | "recording" | "processing" | "preview";
+type Intent = "send" | "preview";
+
 export function VoiceRecorder({
-  onAttach,
-  onClose,
-  onChooseFile,
+  onSend,
+  onBusyChange,
+  onError,
 }: {
-  onAttach: (file: File) => void;
-  onClose: () => void;
-  onChooseFile: () => void;
+  onSend: (file: File) => void;
+  onBusyChange: (busy: boolean) => void;
+  onError: (message: string) => void;
 }) {
   const { settings } = usePreferences();
-  const [phase, setPhase] = useState<
-    "idle" | "requesting" | "recording" | "preview"
-  >("idle");
-  const [error, setError] = useState("");
+  const [phase, setPhase] = useState<Phase>("idle");
   const [seconds, setSeconds] = useState(0);
   const [preview, setPreview] = useState<{ file: File; url: string } | null>(
     null,
@@ -37,6 +37,7 @@ export function VoiceRecorder({
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const active = useRef(false);
   const generation = useRef(0);
+  const intent = useRef<Intent>("preview");
   const previewUrl = useRef<string | null>(null);
   function clearTimers() {
     if (interval.current) clearInterval(interval.current);
@@ -45,6 +46,10 @@ export function VoiceRecorder({
   function stopTracks() {
     stream.current?.getTracks().forEach((track) => track.stop());
     stream.current = null;
+  }
+  function releasePreview() {
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    previewUrl.current = null;
   }
   useEffect(() => {
     active.current = true;
@@ -59,31 +64,57 @@ export function VoiceRecorder({
         if (current.state !== "inactive") current.stop();
       }
       stopTracks();
-      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+      releasePreview();
     };
   }, []);
-  function stop() {
+  function reset() {
+    releasePreview();
+    setPreview(null);
+    setPhase("idle");
+    onBusyChange(false);
+    recorder.current = null;
+  }
+  function cancel() {
+    generation.current++;
     const current = recorder.current;
-    if (current && current.state !== "inactive") current.stop();
+    if (current) {
+      current.onstop = null;
+      current.ondataavailable = null;
+      current.onerror = null;
+      if (current.state !== "inactive") current.stop();
+    }
+    clearTimers();
+    stopTracks();
+    reset();
+    onError("");
+  }
+  function finish(nextIntent: Intent) {
+    const current = recorder.current;
+    if (!current || current.state === "inactive") return;
+    intent.current = nextIntent;
+    setPhase("processing");
+    current.stop();
     clearTimers();
     stopTracks();
   }
   async function start() {
-    setError("");
+    onError("");
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      setError(
+      onError(
         "A gravação exige HTTPS ou localhost. Pelo Wi-Fi em HTTP, anexe um áudio do aparelho.",
       );
       return;
     }
     if (typeof MediaRecorder === "undefined") {
-      setError(
+      onError(
         "Este navegador não oferece gravação de áudio. Você ainda pode anexar um arquivo de áudio.",
       );
       return;
     }
     setPhase("requesting");
+    onBusyChange(true);
     const attempt = ++generation.current;
+    intent.current = "preview";
     try {
       const acquired = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -109,13 +140,15 @@ export function VoiceRecorder({
       let tooLarge = false;
       let failed = false;
       current.ondataavailable = (event) => {
-        if (event.data.size) {
-          size += event.data.size;
-          chunks.push(event.data);
-          if (size > MAX_BYTES && current.state !== "inactive") {
-            tooLarge = true;
-            current.stop();
-          }
+        if (!event.data.size) return;
+        size += event.data.size;
+        chunks.push(event.data);
+        if (
+          size > attachmentPolicy.audio.limit &&
+          current.state !== "inactive"
+        ) {
+          tooLarge = true;
+          current.stop();
         }
       };
       current.onerror = () => {
@@ -123,27 +156,25 @@ export function VoiceRecorder({
         failed = true;
         clearTimers();
         stopTracks();
-        if (active.current) {
-          setError(
-            "A gravação foi interrompida pelo navegador. Tente novamente ou anexe um áudio.",
-          );
-          setPhase("idle");
-        }
+        reset();
+        onError(
+          "A gravação foi interrompida. Tente novamente ou anexe um áudio.",
+        );
       };
       current.onstop = () => {
         clearTimers();
         stopTracks();
         if (!active.current || attempt !== generation.current || failed) return;
-        if (tooLarge || size > MAX_BYTES) {
-          setError("O áudio excedeu 10 MB. Grave um trecho menor.");
-          setPhase("idle");
+        if (tooLarge || size > attachmentPolicy.audio.limit) {
+          reset();
+          onError("O áudio excedeu 10 MB. Grave um trecho menor.");
           return;
         }
         if (!size) {
-          setError(
+          reset();
+          onError(
             "Nenhum áudio foi capturado. Confira o microfone e tente novamente.",
           );
-          setPhase("idle");
           return;
         }
         const mime = (
@@ -158,7 +189,12 @@ export function VoiceRecorder({
           `audio-${createDemoId().slice(0, 8)}.${extension}`,
           { type: mime },
         );
-        if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+        if (intent.current === "send") {
+          onSend(file);
+          reset();
+          return;
+        }
+        releasePreview();
         const url = URL.createObjectURL(file);
         previewUrl.current = url;
         setPreview({ file, url });
@@ -175,111 +211,95 @@ export function VoiceRecorder({
           ),
         250,
       );
-      timeout.current = setTimeout(stop, MAX_SECONDS * 1000);
+      timeout.current = setTimeout(() => finish("preview"), MAX_SECONDS * 1000);
     } catch (caught) {
-      stopTracks();
       if (!active.current || attempt !== generation.current) return;
-      setPhase("idle");
-      setError(
+      stopTracks();
+      reset();
+      onError(
         caught instanceof DOMException && caught.name === "NotAllowedError"
-          ? "Permissão do microfone negada. Você pode liberá-la nas configurações do navegador ou anexar um áudio."
+          ? "Permissão do microfone negada. Libere nas configurações do navegador ou anexe um áudio."
           : "Não foi possível acessar o microfone. Confira se está conectado e disponível.",
       );
     }
   }
+  if (phase === "idle")
+    return (
+      <button
+        type="button"
+        className="icon-button voice-mic shrink-0"
+        aria-label="Gravar mensagem de voz"
+        title="Gravar áudio"
+        onClick={start}
+      >
+        <Mic size={22} />
+      </button>
+    );
   return (
-    <section className="voice-recorder" aria-label="Gravador de áudio">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium">Mensagem de voz</h3>
+    <div
+      className="voice-controls"
+      role="region"
+      aria-label="Gravador de áudio"
+    >
+      {phase === "preview" && preview ? (
+        <audio
+          src={preview.url}
+          controls
+          onLoadedMetadata={(event) => {
+            event.currentTarget.playbackRate = settings.playbackRate;
+          }}
+          className="voice-preview"
+          aria-label="Ouvir gravação antes de enviar"
+        />
+      ) : (
+        <p role="status" className="voice-status">
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full ${phase === "recording" ? "bg-red-500" : "bg-[var(--muted)]"}`}
+          />
+          {phase === "recording"
+            ? `Gravando · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+            : phase === "requesting"
+              ? "Aguardando microfone…"
+              : "Preparando áudio…"}
+        </p>
+      )}
+      <div className="voice-actions">
         <button
           type="button"
-          className="icon-button"
-          onClick={onClose}
-          aria-label="Fechar gravação"
+          className="icon-button shrink-0"
+          aria-label="Descartar áudio"
+          title="Descartar"
+          onClick={cancel}
         >
-          <X size={17} />
+          <Trash2 size={19} />
+        </button>
+        {phase === "recording" && (
+          <button
+            type="button"
+            className="icon-button shrink-0"
+            aria-label="Parar e ouvir"
+            title="Ouvir antes de enviar (opcional)"
+            onClick={() => finish("preview")}
+          >
+            <Square size={17} />
+          </button>
+        )}
+        <button
+          type="button"
+          className="send-button shrink-0"
+          aria-label="Enviar áudio"
+          title="Enviar áudio"
+          disabled={phase !== "recording" && phase !== "preview"}
+          onClick={() => {
+            if (phase === "preview" && preview) {
+              onSend(preview.file);
+              reset();
+            } else finish("send");
+          }}
+        >
+          <Send size={20} />
         </button>
       </div>
-      {phase === "idle" && (
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="primary-button" onClick={start}>
-            <Mic size={18} />
-            Iniciar gravação
-          </button>
-          <span className="text-xs text-[var(--muted)]">
-            Até 2 minutos · microfone só após sua permissão
-          </span>
-        </div>
-      )}
-      {phase === "requesting" && (
-        <p role="status" className="text-sm text-[var(--muted)]">
-          Aguardando permissão do microfone… Você pode cancelar fechando esta
-          janela.
-        </p>
-      )}
-      {phase === "recording" && (
-        <div className="flex items-center justify-between gap-3">
-          <p role="status" className="flex items-center gap-2 text-sm">
-            <span className="h-2 w-2 rounded-full bg-red-500" />
-            Gravando · {Math.floor(seconds / 60)}:
-            {String(seconds % 60).padStart(2, "0")}
-          </p>
-          <button type="button" className="secondary-button" onClick={stop}>
-            <Square size={15} />
-            Parar e ouvir
-          </button>
-        </div>
-      )}
-      {phase === "preview" && preview && (
-        <>
-          <audio
-            src={preview.url}
-            controls
-            className="w-full"
-            aria-label="Ouvir gravação antes de enviar"
-          />
-          <div className="mt-3 flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onClose}
-            >
-              <Trash2 size={16} />
-              Descartar áudio
-            </button>
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => {
-                onAttach(preview.file);
-                onClose();
-              }}
-            >
-              <Check size={17} />
-              Anexar gravação
-            </button>
-          </div>
-          <p className="mt-3 text-xs text-[var(--muted)]">
-            O áudio será anexado à mensagem. Use o botão de envio quando estiver
-            pronto.
-          </p>
-        </>
-      )}
-      {error && (
-        <p role="alert" className="form-error mt-3">
-          {error}
-        </p>
-      )}
-      {(phase === "idle" || error) && (
-        <button
-          type="button"
-          className="mt-3 inline-flex min-h-11 items-center gap-2 text-xs text-[var(--accent)]"
-          onClick={onChooseFile}
-        >
-          <Paperclip size={15} />
-          Escolher áudio do aparelho
-        </button>
-      )}
-    </section>
+    </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Menu, MoreHorizontal, Bot, Check } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, MoreHorizontal, Bot, Check, Settings } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useDemo } from "@/components/demo-provider";
 import { contacts } from "@/lib/data/chat";
@@ -36,11 +37,11 @@ export function ChatPanel({
     <section className="chat-panel" aria-label={`Conversa com ${chat.name}`}>
       <header className="chat-panel-header">
         <button
-          className="icon-button"
+          className="icon-button mobile-only"
           onClick={onBack}
           aria-label="Abrir lista de conversas"
         >
-          <Menu size={22} />
+          <ArrowLeft size={22} />
         </button>
         <Avatar name={chat.name} color={chat.color} />
         <div className="min-w-0 flex-1">
@@ -56,8 +57,16 @@ export function ChatPanel({
           <Bot size={14} aria-hidden="true" />
           <span className="hidden sm:inline">Teste</span>
         </span>
+        <Link
+          href="/configuracoes"
+          className="icon-button shrink-0"
+          aria-label="Abrir configurações"
+          title="Configurações"
+        >
+          <Settings size={21} />
+        </Link>
         <button
-          className="icon-button"
+          className="icon-button shrink-0"
           onClick={onMenu}
           aria-label="Abrir menu do chat"
         >

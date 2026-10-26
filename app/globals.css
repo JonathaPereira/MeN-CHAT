@@ -282,6 +282,7 @@
   border-inline: 1px solid var(--line);
 }
 .conversation-sidebar {
+  display: none;
   flex-direction: column;
   flex-shrink: 0;
   min-height: 0;
@@ -454,7 +455,8 @@
 }
 @media (min-width: 768px) {
   .conversation-sidebar {
-    width: 360px;
+    display: flex;
+    width: clamp(300px, 25vw, 360px);
     border-right: 1px solid var(--line);
   }
   .profile-card {
@@ -466,7 +468,7 @@
     grid-template-columns: 1.05fr 1fr;
   }
   .conversation-sidebar {
-    width: 390px;
+    width: clamp(300px, 25vw, 360px);
   }
 }
 @media (max-width: 767px) {
@@ -530,7 +532,7 @@
   }
 }
 
-/* A conversa ocupa a janela. A lista fica em um painel sob demanda. */
+/* Lista fixa no desktop; conversa preenche o espaço restante até a borda. */
 .messenger-main {
   max-width: none;
   margin: 0;
@@ -700,5 +702,118 @@
   .setting-row {
     padding: 18px 16px;
     gap: 14px;
+  }
+}
+
+[hidden] {
+  display: none !important;
+}
+.chat-area {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+}
+.composer-row {
+  display: flex;
+  width: min(96%, 1280px);
+  margin-inline: auto;
+  align-items: flex-end;
+  gap: 8px;
+}
+.message-input {
+  flex: 1;
+  width: auto;
+  height: 44px;
+  min-height: 44px;
+  padding: 11px 14px;
+  line-height: 20px;
+}
+.attach-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 7px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.attach-button span {
+  display: none;
+  font-size: 12px;
+  font-weight: 500;
+}
+.attach-button:hover {
+  border-color: var(--accent);
+}
+.voice-mic {
+  color: var(--accent);
+  background: var(--canvas);
+}
+.voice-controls {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+  min-height: 44px;
+}
+.voice-status {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 7px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.voice-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+}
+.voice-preview {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: 400px;
+}
+@media (min-width: 768px) {
+  .mobile-only {
+    display: none;
+  }
+}
+@media (min-width: 1024px) {
+  .attach-button span {
+    display: inline;
+  }
+}
+@media (max-width: 767px) {
+  .conversation-sidebar.mobile-list-active {
+    display: flex;
+  }
+  .chat-area.mobile-chat-hidden {
+    display: none;
+  }
+  .composer-row {
+    width: 100%;
+  }
+  .chat-panel-header .automation-tag {
+    display: none;
+  }
+  .voice-controls:has(.voice-preview) {
+    flex-wrap: wrap;
+  }
+  .voice-preview {
+    flex-basis: 100%;
+  }
+  .voice-controls:has(.voice-preview) .voice-actions {
+    margin-left: auto;
   }
 }

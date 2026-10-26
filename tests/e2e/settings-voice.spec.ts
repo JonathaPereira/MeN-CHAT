@@ -41,26 +41,41 @@ async function tracksEnded(page: Page) {
     .toBe(true);
 }
 
-test("chat ocupa a janela inteira e lista e menus ficam escondidos", async ({
+test("lista fixa no desktop, chat preenche a direita e configurações ficam visíveis", async ({
   page,
 }) => {
   await page.goto("/conversas");
   await expect(
     page.getByRole("heading", { name: "Assistente M&N", exact: true }),
   ).toBeVisible();
+  const width = page.viewportSize()!.width;
+  const sidebar = page.getByRole("complementary", {
+    name: "Lista de conversas",
+  });
+  const main = await page.locator("main").boundingBox();
+  expect(main?.x).toBe(0);
+  expect(main?.width).toBe(width);
+  expect(main?.height).toBe(page.viewportSize()!.height);
+  if (width >= 768) {
+    await expect(sidebar).toBeVisible();
+    const left = await sidebar.boundingBox();
+    const right = await page
+      .getByRole("region", { name: "Conversa com Assistente M&N", exact: true })
+      .boundingBox();
+    expect(left?.x).toBe(0);
+    expect(right?.x).toBe(left!.width);
+    expect(right!.x + right!.width).toBe(width);
+  } else {
+    await expect(sidebar).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Abrir lista de conversas" })
+      .click();
+    await expect(sidebar).toBeVisible();
+    await page.getByRole("button", { name: /Assistente M&N/ }).click();
+  }
   await expect(
-    page.getByRole("complementary", { name: "Lista de conversas" }),
-  ).toHaveCount(0);
-  const bounds = await page.locator("main").boundingBox();
-  expect(bounds?.x).toBe(0);
-  expect(bounds?.width).toBe(page.viewportSize()!.width);
-  expect(bounds?.height).toBe(page.viewportSize()!.height);
-  await page.getByRole("button", { name: "Abrir lista de conversas" }).click();
-  await expect(
-    page.getByRole("dialog", { name: "Suas conversas" }),
+    page.getByRole("link", { name: "Abrir configurações", exact: true }),
   ).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Abrir menu do chat" }).click();
   await page.getByRole("link", { name: "Configurações", exact: true }).click();
   await expect(
@@ -167,7 +182,7 @@ test("avisos respeitam prévia e só são emitidos fora da conversa ativa", asyn
   ).toHaveCount(0);
 });
 
-test("microfone grava, para, libera o aparelho e permite ouvir antes de anexar", async ({
+test("um clique inicia a gravação e ouvir antes de enviar é opcional", async ({
   page,
   context,
 }) => {
@@ -175,17 +190,15 @@ test("microfone grava, para, libera o aparelho e permite ouvir antes de anexar",
   await trackMicrophone(page);
   await page.goto("/conversas");
   await page.getByRole("button", { name: "Gravar mensagem de voz" }).click();
-  await page.getByRole("button", { name: "Iniciar gravação" }).click();
   await expect(page.getByRole("status")).toContainText("Gravando");
   await expect(page.getByRole("status")).toContainText("0:01");
   await page.getByRole("button", { name: "Parar e ouvir" }).click();
   await expect(page.getByLabel("Ouvir gravação antes de enviar")).toBeVisible();
   await tracksEnded(page);
-  await page.getByRole("button", { name: "Anexar gravação" }).click();
+  await page.getByRole("button", { name: "Enviar áudio", exact: true }).click();
   await expect(
     page.getByRole("region", { name: "Gravador de áudio" }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Enviar mensagem de teste" }).click();
   await expect(page.locator("[role=log] audio")).toBeVisible();
   await expect
     .poll(() =>
@@ -207,9 +220,11 @@ test("trocar de conversa durante a gravação interrompe o microfone", async ({
   await trackMicrophone(page);
   await page.goto("/conversas");
   await page.getByRole("button", { name: "Gravar mensagem de voz" }).click();
-  await page.getByRole("button", { name: "Iniciar gravação" }).click();
   await expect(page.getByRole("status")).toContainText("Gravando");
-  await page.getByRole("button", { name: "Abrir lista de conversas" }).click();
+  const listButton = page.getByRole("button", {
+    name: "Abrir lista de conversas",
+  });
+  if (await listButton.isVisible()) await listButton.click();
   await page.getByRole("button", { name: /Ana Oliveira/ }).click();
   await expect(
     page.getByRole("heading", { name: "Ana Oliveira" }),
@@ -230,7 +245,6 @@ test("permissão negada oferece um caminho para anexar áudio do aparelho", asyn
   });
   await page.goto("/conversas");
   await page.getByRole("button", { name: "Gravar mensagem de voz" }).click();
-  await page.getByRole("button", { name: "Iniciar gravação" }).click();
   await expect(page.locator("p[role=alert]")).toContainText(
     "Permissão do microfone negada",
   );
@@ -357,7 +371,6 @@ test("HTTP sem contexto seguro explica restrições sem pedir acesso ao microfon
   });
   await page.goto("/conversas");
   await page.getByRole("button", { name: "Gravar mensagem de voz" }).click();
-  await page.getByRole("button", { name: "Iniciar gravação" }).click();
   await expect(page.locator("p[role=alert]")).toContainText(
     "A gravação exige HTTPS ou localhost",
   );
@@ -371,4 +384,91 @@ test("HTTP sem contexto seguro explica restrições sem pedir acesso ao microfon
   await expect(
     page.getByText("Permissão: exige HTTPS ou localhost"),
   ).toBeVisible();
+});
+
+test("gravar e enviar exigem apenas dois cliques e não passam pelo fluxo de anexos", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["microphone"]);
+  await trackMicrophone(page);
+  await page.goto("/conversas");
+  await page.getByRole("button", { name: "Gravar mensagem de voz" }).click();
+  await expect(page.getByRole("status")).toContainText("0:01");
+  await page.getByRole("button", { name: "Enviar áudio", exact: true }).click();
+  await expect(page.locator("[role=log] audio")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Gravar mensagem de voz" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("list", { name: "Anexos selecionados" }),
+  ).toHaveCount(0);
+  await tracksEnded(page);
+  await expect(page.getByRole("log")).toContainText(
+    "nenhum arquivo foi enviado para a nuvem",
+  );
+});
+
+test("clipe abre o seletor de arquivos e mantém o envio de anexos acessível", async ({
+  page,
+}) => {
+  await page.goto("/conversas");
+  const button = page.getByRole("button", {
+    name: "Anexar arquivo",
+    exact: true,
+  });
+  await expect(button).toBeInViewport();
+  const chooser = page.waitForEvent("filechooser");
+  await button.click();
+  await (
+    await chooser
+  ).setFiles({ name: "foto.png", mimeType: "image/png", buffer: png });
+  await expect(
+    page.getByRole("button", { name: "Remover foto.png" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Enviar mensagem de teste" }).click();
+  await expect(
+    page.getByRole("img", { name: "foto.png", exact: true }),
+  ).toBeVisible();
+});
+
+test("responsividade mantém lista, borda direita, engrenagem e compositor nos tamanhos de transição", async ({
+  page,
+}) => {
+  await page.goto("/conversas");
+  for (const width of [1920, 1024, 768, 767, 390, 320]) {
+    await page.setViewportSize({ width, height: 760 });
+    const sidebar = page.getByRole("complementary", {
+      name: "Lista de conversas",
+    });
+    const pane = page.getByRole("region", {
+      name: "Conversa com Assistente M&N",
+      exact: true,
+    });
+    if (width >= 768) {
+      await expect(sidebar).toBeVisible();
+      const left = await sidebar.boundingBox();
+      const right = await pane.boundingBox();
+      expect(left!.x).toBe(0);
+      expect(right!.x).toBe(left!.width);
+      expect(right!.x + right!.width).toBe(width);
+    } else {
+      await expect(sidebar).toHaveCount(0);
+      const right = await pane.boundingBox();
+      expect(right!.x).toBe(0);
+      expect(right!.width).toBe(width);
+    }
+    await expect(
+      page.getByRole("link", { name: "Abrir configurações", exact: true }),
+    ).toBeInViewport();
+    await expect(
+      page.getByRole("button", { name: "Anexar arquivo", exact: true }),
+    ).toBeInViewport();
+    await expect(page.getByLabel("Mensagem", { exact: true })).toBeInViewport();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
 });

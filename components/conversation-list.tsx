@@ -14,6 +14,7 @@ import {
   Bell,
   Users,
 } from "lucide-react";
+import { useIsDesktop } from "@/lib/hooks/use-is-desktop";
 import { Modal } from "@/components/modal";
 import { usePreferences } from "@/components/preferences-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -24,6 +25,7 @@ import { NewChatDialog } from "@/components/chat/new-chat-dialog";
 
 export function ConversationList() {
   const { profile, chats, markRead } = useDemo();
+  const isDesktop = useIsDesktop();
   const [selectedId, setSelectedId] = useState("assistant-chat");
   const [listOpen, setListOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -53,169 +55,167 @@ export function ConversationList() {
         data-text-size={settings.textSize}
       >
         <h1 className="sr-only">M&N CHAT</h1>
-        {listOpen && (
-          <Modal
-            title="Suas conversas"
-            drawer
-            onClose={() => setListOpen(false)}
-          >
-            <aside
-              className="conversation-sidebar flex"
-              aria-label="Lista de conversas"
-            >
-              <div className="sidebar-heading">
-                <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-2xl font-semibold tracking-tight">
-                    Conversas
-                  </h2>
-                  <div className="flex gap-1">
-                    <button
-                      className="icon-button"
-                      onClick={() => {
-                        setListOpen(false);
-                        setDialog("private");
-                      }}
-                      aria-label="Nova conversa por código"
-                      title="Nova conversa"
-                    >
-                      <Plus size={22} />
-                    </button>
-                    <button
-                      className="icon-button"
-                      onClick={() => {
-                        setListOpen(false);
-                        setDialog("group");
-                      }}
-                      aria-label="Criar grupo"
-                      title="Criar grupo"
-                    >
-                      <Users size={21} />
-                    </button>
-                  </div>
-                </div>
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  Seu círculo, sempre por perto.
-                </p>
-                <div className="relative mt-5">
-                  <label htmlFor="search" className="sr-only">
-                    Buscar conversas pelo nome
-                  </label>
-                  <Search size={17} className="field-icon" aria-hidden="true" />
-                  <input
-                    id="search"
-                    type="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Buscar conversa"
-                    className="field bg-[var(--canvas)] pl-11"
-                  />
-                </div>
-                <div className="mt-4 flex gap-2" aria-label="Filtrar conversas">
-                  {(
-                    [
-                      { id: "all", label: "Todas" },
-                      { id: "unread", label: "Não lidas" },
-                      { id: "groups", label: "Grupos" },
-                    ] as const
-                  ).map((item) => (
-                    <button
-                      key={item.id}
-                      className={`filter-chip ${filter === item.id ? "filter-active" : ""}`}
-                      onClick={() => setFilter(item.id)}
-                      aria-pressed={filter === item.id}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
+        <aside
+          className={`conversation-sidebar ${listOpen ? "mobile-list-active" : ""}`}
+          aria-label="Lista de conversas"
+        >
+          <div className="sidebar-heading">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-2xl font-semibold tracking-tight">
+                Conversas
+              </h2>
+              <div className="flex gap-1">
+                <button
+                  className="icon-button"
+                  onClick={() => {
+                    setListOpen(false);
+                    setDialog("private");
+                  }}
+                  aria-label="Nova conversa por código"
+                  title="Nova conversa"
+                >
+                  <Plus size={22} />
+                </button>
+                <button
+                  className="icon-button"
+                  onClick={() => {
+                    setListOpen(false);
+                    setDialog("group");
+                  }}
+                  aria-label="Criar grupo"
+                  title="Criar grupo"
+                >
+                  <Users size={21} />
+                </button>
+                <Link
+                  href="/configuracoes"
+                  className="icon-button"
+                  aria-label="Configurações da aplicação"
+                  title="Configurações"
+                >
+                  <Settings size={20} />
+                </Link>
               </div>
-              <div className="conversation-scroll">
-                <ul aria-label="Resultados da busca">
-                  {filtered.map((chat) => {
-                    const last = chat.messages.at(-1);
-                    return (
-                      <li key={chat.id}>
-                        <button
-                          onClick={() => openChat(chat.id)}
-                          className={`conversation-row ${selectedId === chat.id ? "conversation-active" : ""}`}
-                          aria-current={
-                            selectedId === chat.id ? "true" : undefined
-                          }
-                        >
-                          <Avatar name={chat.name} color={chat.color} />
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-center justify-between gap-2">
-                              <span className="truncate text-sm font-semibold">
-                                {chat.name}
-                              </span>
-                              <span className="shrink-0 text-[10px] text-[var(--muted)]">
-                                {last?.time}
-                              </span>
-                            </span>
-                            <span className="mt-1.5 flex items-center justify-between gap-2">
-                              <span className="truncate text-xs text-[var(--muted)]">
-                                {last?.outgoing && "Você: "}
-                                {last?.text ||
-                                  (last?.attachments.length
-                                    ? "📎 Anexo local"
-                                    : "Comece uma conversa de teste")}
-                              </span>
-                              {chat.unread > 0 ? (
-                                <span
-                                  className="unread-count"
-                                  aria-label={`${chat.unread} mensagens fictícias não lidas`}
-                                >
-                                  {chat.unread}
-                                </span>
-                              ) : last?.outgoing ? (
-                                <Check
-                                  size={13}
-                                  className="shrink-0 text-[var(--muted)]"
-                                  aria-hidden="true"
-                                />
-                              ) : null}
-                            </span>
+            </div>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Seu círculo, sempre por perto.
+            </p>
+            <div className="relative mt-5">
+              <label htmlFor="search" className="sr-only">
+                Buscar conversas pelo nome
+              </label>
+              <Search size={17} className="field-icon" aria-hidden="true" />
+              <input
+                id="search"
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar conversa"
+                className="field bg-[var(--canvas)] pl-11"
+              />
+            </div>
+            <div className="mt-4 flex gap-2" aria-label="Filtrar conversas">
+              {(
+                [
+                  { id: "all", label: "Todas" },
+                  { id: "unread", label: "Não lidas" },
+                  { id: "groups", label: "Grupos" },
+                ] as const
+              ).map((item) => (
+                <button
+                  key={item.id}
+                  className={`filter-chip ${filter === item.id ? "filter-active" : ""}`}
+                  onClick={() => setFilter(item.id)}
+                  aria-pressed={filter === item.id}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="conversation-scroll">
+            <ul aria-label="Resultados da busca">
+              {filtered.map((chat) => {
+                const last = chat.messages.at(-1);
+                return (
+                  <li key={chat.id}>
+                    <button
+                      onClick={() => openChat(chat.id)}
+                      className={`conversation-row ${selectedId === chat.id ? "conversation-active" : ""}`}
+                      aria-current={selectedId === chat.id ? "true" : undefined}
+                    >
+                      <Avatar name={chat.name} color={chat.color} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm font-semibold">
+                            {chat.name}
                           </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                {!filtered.length && (
-                  <p
-                    role="status"
-                    className="p-8 text-center text-sm text-[var(--muted)]"
-                  >
-                    Nenhuma conversa encontrada.
-                  </p>
-                )}
-              </div>
-              <footer className="sidebar-footer">
-                <Link
-                  href="/perfil"
-                  className="flex min-h-10 items-center gap-2 text-xs text-[var(--accent)]"
-                >
-                  <UserRound size={16} />
-                  Meu perfil
-                </Link>
-                <Link
-                  href="/login"
-                  className="flex min-h-10 items-center gap-1 text-xs text-[var(--muted)]"
-                >
-                  <ArrowLeft size={14} />
-                  Login
-                </Link>
-              </footer>
-            </aside>
-          </Modal>
-        )}
-        <div className="flex min-h-0 min-w-0 flex-1">
+                          <span className="shrink-0 text-[10px] text-[var(--muted)]">
+                            {last?.time}
+                          </span>
+                        </span>
+                        <span className="mt-1.5 flex items-center justify-between gap-2">
+                          <span className="truncate text-xs text-[var(--muted)]">
+                            {last?.outgoing && "Você: "}
+                            {last?.text ||
+                              (last?.attachments.length
+                                ? "📎 Anexo local"
+                                : "Comece uma conversa de teste")}
+                          </span>
+                          {chat.unread > 0 ? (
+                            <span
+                              className="unread-count"
+                              aria-label={`${chat.unread} mensagens fictícias não lidas`}
+                            >
+                              {chat.unread}
+                            </span>
+                          ) : last?.outgoing ? (
+                            <Check
+                              size={13}
+                              className="shrink-0 text-[var(--muted)]"
+                              aria-hidden="true"
+                            />
+                          ) : null}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {!filtered.length && (
+              <p
+                role="status"
+                className="p-8 text-center text-sm text-[var(--muted)]"
+              >
+                Nenhuma conversa encontrada.
+              </p>
+            )}
+          </div>
+          <footer className="sidebar-footer">
+            <Link
+              href="/perfil"
+              className="flex min-h-10 items-center gap-2 text-xs text-[var(--accent)]"
+            >
+              <UserRound size={16} />
+              Meu perfil
+            </Link>
+            <Link
+              href="/login"
+              className="flex min-h-10 items-center gap-1 text-xs text-[var(--muted)]"
+            >
+              <ArrowLeft size={14} />
+              Login
+            </Link>
+          </footer>
+        </aside>
+        <div className={`chat-area ${listOpen ? "mobile-chat-hidden" : ""}`}>
           {selected ? (
             <ChatPanel
               chat={selected}
               onBack={() => setListOpen(true)}
               onMenu={() => setMenuOpen(true)}
-              inactive={listOpen || menuOpen || Boolean(dialog)}
+              inactive={(!isDesktop && listOpen) || menuOpen || Boolean(dialog)}
             />
           ) : (
             <section className="flex flex-1 flex-col items-center justify-center gap-4 text-center text-[var(--muted)]">

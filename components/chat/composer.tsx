@@ -7,7 +7,7 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { File, Paperclip, Send, Mic, X } from "lucide-react";
+import { File, Paperclip, Send, X } from "lucide-react";
 import {
   attachmentAccept,
   MAX_ATTACHMENTS,
@@ -22,7 +22,8 @@ import type { Attachment } from "@/types/chat";
 
 export function Composer({ chatId }: { chatId: string }) {
   const { settings } = usePreferences();
-  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [voiceError, setVoiceError] = useState(false);
   const audioInput = useRef<HTMLInputElement>(null);
   const { sendMessage, fileUrl, releaseUrl } = useDemo();
   const [text, setText] = useState("");
@@ -76,7 +77,7 @@ export function Composer({ chatId }: { chatId: string }) {
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!text.trim() && !attachments.length) return;
+    if (voiceBusy || (!text.trim() && !attachments.length)) return;
     sendMessage(chatId, text, attachments);
     pendingRef.current = [];
     setText("");
@@ -113,12 +114,14 @@ export function Composer({ chatId }: { chatId: string }) {
           {error}
         </p>
       )}
-      {voiceOpen && (
-        <VoiceRecorder
-          onAttach={(file) => addFiles([file])}
-          onClose={() => setVoiceOpen(false)}
-          onChooseFile={() => audioInput.current?.click()}
-        />
+      {voiceError && (
+        <button
+          type="button"
+          className="secondary-button mb-3"
+          onClick={() => audioInput.current?.click()}
+        >
+          Escolher áudio do aparelho
+        </button>
       )}
       <input
         ref={audioInput}
@@ -129,10 +132,10 @@ export function Composer({ chatId }: { chatId: string }) {
         tabIndex={-1}
         onChange={(event) => {
           changeFiles(event);
-          setVoiceOpen(false);
+          setVoiceError(false);
         }}
       />
-      <form onSubmit={submit} className="flex items-end gap-2">
+      <form onSubmit={submit} className="composer-row">
         <input
           ref={input}
           type="file"
@@ -145,11 +148,14 @@ export function Composer({ chatId }: { chatId: string }) {
         />
         <button
           type="button"
-          className="icon-button mb-1 shrink-0"
+          className="attach-button"
           aria-label="Anexar arquivo"
+          title="Anexar fotos, vídeos, áudio ou documentos"
+          disabled={voiceBusy}
           onClick={() => input.current?.click()}
         >
-          <Paperclip size={22} />
+          <Paperclip size={22} aria-hidden="true" />
+          <span>Anexar</span>
         </button>
         <label htmlFor="message" className="sr-only">
           Mensagem
@@ -160,8 +166,10 @@ export function Composer({ chatId }: { chatId: string }) {
           onChange={(e) => setText(e.target.value)}
           maxLength={4000}
           rows={1}
-          placeholder="Escreva uma mensagem…"
+          placeholder="Mensagem…"
           className="message-input"
+          hidden={voiceBusy}
+          disabled={voiceBusy}
           onKeyDown={(e) => {
             if (
               settings.enterToSend &&
@@ -174,17 +182,34 @@ export function Composer({ chatId }: { chatId: string }) {
             }
           }}
         />
-        <button
-          type="button"
-          className="icon-button mb-1 shrink-0"
-          aria-label="Gravar mensagem de voz"
-          onClick={() => setVoiceOpen(true)}
-          disabled={voiceOpen}
-        >
-          <Mic size={21} />
-        </button>
+        <VoiceRecorder
+          onBusyChange={setVoiceBusy}
+          onError={(message) => {
+            setError(message);
+            setVoiceError(Boolean(message));
+          }}
+          onSend={(file) => {
+            const result = validateAttachment(file);
+            if (result.error !== undefined) {
+              setError(result.error);
+              return;
+            }
+            sendMessage(chatId, "", [
+              {
+                id: createDemoId(),
+                name: file.name,
+                size: file.size,
+                kind: result.kind,
+                url: fileUrl(file),
+              },
+            ]);
+            setError("");
+            setVoiceError(false);
+          }}
+        />
         <button
           type="submit"
+          hidden={voiceBusy}
           className="send-button mb-0.5 shrink-0"
           disabled={!text.trim() && !attachments.length}
           aria-label="Enviar mensagem de teste"

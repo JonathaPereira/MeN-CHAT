@@ -352,11 +352,11 @@ export function SettingsPanel() {
                   </label>
                 </div>
                 <p className="demo-note mt-5">
-                  Grave até 2 minutos por áudio. Ouça, descarte ou envie a
-                  prévia. O microfone só é solicitado ao iniciar a gravação e é
-                  liberado ao parar ou sair. A gravação exige HTTPS ou
-                  localhost; no Wi-Fi em HTTP, você ainda pode anexar um áudio
-                  do aparelho.
+                  Toque no microfone para começar e na seta para enviar. Ouvir
+                  antes é opcional. Grave até 2 minutos por áudio. O microfone
+                  só é solicitado ao iniciar a gravação e é liberado ao parar ou
+                  sair. A gravação exige HTTPS ou localhost; no Wi-Fi em HTTP,
+                  você ainda pode anexar um áudio do aparelho.
                 </p>
               </>
             )}
