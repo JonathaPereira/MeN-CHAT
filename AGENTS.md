@@ -31,6 +31,7 @@
 - Notificações de sistema só pedem permissão por botão, exigem contexto seguro e não são push com o app fechado. Download automático controla prévias, nunca salvamento em disco sem ação. Não prometa suporte móvel universal.
 - Identifique dados fictícios e funcionalidades indisponíveis; evite controles que pareçam executar ações reais.
 - Antes de concluir: `npm run lint`, `npm run typecheck`, `npm run build`, `npm test`, `npm run test:e2e` e smoke test das páginas e interações em desktop e celular quando houver navegador disponível.
+- Ao alterar configuração do Next ou acesso pela rede local, execute também `npm run test:dev` (porta 3102; pare outro servidor dev deste checkout). Preserve a raiz explícita do Turbopack e a lista de origens restrita aos endereços da própria máquina.
 - Informe arquivos alterados, verificações, limitações e o que ficou fora da etapa. Não avance automaticamente.
 
 <!-- BEGIN:nextjs-agent-rules -->

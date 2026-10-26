@@ -34,6 +34,12 @@ O endereço `localhost` no celular aponta para o próprio celular; use o IPv4 do
 
 Perfil e conversas continuam locais a cada navegador; o celular conversa com o assistente de teste, sem sincronização com o computador. O código usa `crypto.getRandomValues` para IDs temporários e não depende de `crypto.randomUUID`, que exige contexto seguro e não está disponível normalmente por HTTP em um endereço da rede local.
 
+## Se ficar carregando ou os botões não responderem
+
+Veja o [passo a passo de correção no Windows](docs/solucao-carregamento-windows.md). Para testar a interface sem recompilar durante o uso, prefira `npm run build` e depois `npm start -- --hostname 0.0.0.0 --port 3001`. Use a mesma porta nos dois aparelhos.
+
+A configuração de desenvolvimento autoriza automaticamente os IPv4 da máquina e fixa a raiz do Turbopack na pasta do projeto. Não é necessário editar um IP pessoal no código. Reinicie o servidor se mudar de rede.
+
 ## O que testar
 
 1. **Tema:** use sol/lua desde o login ou no menu do chat. A preferência é salva no navegador; sem preferência, segue o sistema.
@@ -65,6 +71,7 @@ npm run lint
 npm run typecheck
 npm test
 npm run test:e2e
+npm run test:dev
 ```
 
 Antes do primeiro teste de navegador, instale o Chromium do Playwright:
@@ -81,6 +88,8 @@ Na nuvem, é possível reutilizar o Chromium instalado:
 ```bash
 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e -- --workers=3
 ```
+
+`npm run test:dev` cobre especificamente JavaScript, HMR e interações no servidor de desenvolvimento, na porta 3102; pare outros servidores dev deste checkout antes de executá-lo.
 
 Para produção local: `npm run build` seguido de `npm start`. Isso não publica o aplicativo na internet.
 
