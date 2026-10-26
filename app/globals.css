@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-canvas text-ink antialiased; font-family: Arial, Helvetica, sans-serif; }
+  button, input, a { -webkit-tap-highlight-color: transparent; }
+  button, a, input { @apply outline-offset-4; }
+  :focus-visible { @apply outline outline-2 outline-pine; }
+  ::selection { background: #d9edc8; color: #15372f; }
+}
+
+@layer components {
+  .eyebrow { @apply text-[10px] font-bold tracking-[0.18em] text-pine; }
+  .field-label { @apply mb-2 block text-sm font-medium text-ink; }
+  .field { @apply h-[52px] w-full min-w-0 rounded-xl border border-slate-200 bg-white px-4 text-sm text-ink transition-colors placeholder:text-slate-400 focus:border-pine; }
+  .field-icon { @apply pointer-events-none absolute left-4 top-[17px] text-slate-400; }
+  .primary-button { @apply inline-flex min-h-[52px] items-center justify-center gap-3 rounded-xl bg-pine px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#10513e]; }
+  .secondary-button { @apply inline-flex min-h-[48px] items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-ink transition-colors hover:border-pine hover:bg-[#f1f6ed]; }
+  .filter-chip { @apply min-h-11 rounded-full px-4 py-2 text-xs font-medium transition-colors; }
+  .skip-link { @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:p-4 focus:text-pine; }
+}
+
+.login-story { background: radial-gradient(ellipse at 95% 15%, #29684e 0, transparent 55%), #153d32; }
+.login-story::after { content: ""; position: absolute; width: 560px; height: 560px; right: -300px; bottom: -180px; border: 1px solid #ffffff12; border-radius: 50%; box-shadow: 0 0 0 65px #ffffff05, 0 0 0 130px #ffffff03; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
+}
