@@ -7,13 +7,14 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { File, Paperclip, Send, X } from "lucide-react";
+import { File, Paperclip, Send, Smile, X } from "lucide-react";
 import {
   attachmentAccept,
   MAX_ATTACHMENTS,
   validateAttachment,
   formatFileSize,
 } from "@/lib/attachments";
+import { ExpressionPicker } from "./expression-picker";
 import { VoiceRecorder } from "./voice-recorder";
 import { usePreferences } from "@/components/preferences-provider";
 import { useDemo } from "@/components/demo-provider";
@@ -30,6 +31,8 @@ export function Composer({ chatId }: { chatId: string }) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const pendingRef = useRef<Attachment[]>([]);
   const [error, setError] = useState("");
+  const [expressions, setExpressions] = useState(false);
+  const messageInput = useRef<HTMLTextAreaElement>(null);
   const input = useRef<HTMLInputElement>(null);
   useEffect(
     () => () => {
@@ -135,6 +138,44 @@ export function Composer({ chatId }: { chatId: string }) {
           setVoiceError(false);
         }}
       />
+      {expressions && (
+        <ExpressionPicker
+          onClose={() => setExpressions(false)}
+          onEmoji={(emoji) => {
+            const field = messageInput.current;
+            const start = field?.selectionStart ?? text.length;
+            const end = field?.selectionEnd ?? start;
+            const next = text.slice(0, start) + emoji + text.slice(end);
+            if (next.length > 4000) {
+              setError("A mensagem pode ter até 4000 caracteres.");
+              setExpressions(false);
+              return;
+            }
+            setText(next);
+            setExpressions(false);
+            requestAnimationFrame(() => {
+              field?.focus();
+              field?.setSelectionRange(
+                start + emoji.length,
+                start + emoji.length,
+              );
+            });
+          }}
+          onSticker={(sticker) => {
+            sendMessage(chatId, "", [
+              {
+                id: createDemoId(),
+                name: `${sticker.name}.webp`,
+                kind: "image",
+                sticker: true,
+                size: sticker.size,
+                url: sticker.dataUrl,
+              },
+            ]);
+            setExpressions(false);
+          }}
+        />
+      )}
       <form onSubmit={submit} className="composer-row">
         <input
           ref={input}
@@ -156,10 +197,21 @@ export function Composer({ chatId }: { chatId: string }) {
         >
           <Paperclip size={22} aria-hidden="true" />
         </button>
+        <button
+          type="button"
+          className="expression-button"
+          aria-label="Abrir emojis e figurinhas"
+          title="Emojis e figurinhas"
+          disabled={voiceBusy}
+          onClick={() => setExpressions(true)}
+        >
+          <Smile size={22} />
+        </button>
         <label htmlFor="message" className="sr-only">
           Mensagem
         </label>
         <textarea
+          ref={messageInput}
           id="message"
           value={text}
           onChange={(e) => setText(e.target.value)}

@@ -20,7 +20,9 @@ export function AttachmentPreview({ attachment }: { attachment: Attachment }) {
     if (audio.current) audio.current.playbackRate = settings.playbackRate;
   }, [settings.playbackRate, visible]);
   return (
-    <div className="attachment-preview">
+    <div
+      className={`attachment-preview ${attachment.sticker ? "sticker-attachment" : ""}`}
+    >
       {!visible && (
         <button
           type="button"
@@ -43,7 +45,11 @@ export function AttachmentPreview({ attachment }: { attachment: Attachment }) {
           width={320}
           height={240}
           unoptimized
-          className="max-h-60 w-full rounded-xl object-contain"
+          className={
+            attachment.sticker
+              ? "sticker-image"
+              : "max-h-60 w-full rounded-xl object-contain"
+          }
         />
       )}
       {visible && attachment.kind === "video" && (

@@ -149,7 +149,7 @@ export function ChatPanel({
             return (
               <article
                 key={message.id}
-                className={`message-bubble ${message.outgoing ? "message-outgoing" : "message-incoming"}`}
+                className={`message-bubble ${!message.text && message.attachments.length === 1 && message.attachments[0].sticker ? "sticker-bubble" : ""} ${message.outgoing ? "message-outgoing" : "message-incoming"}`}
                 aria-label={
                   message.outgoing ? "Sua mensagem" : "Mensagem de demonstração"
                 }

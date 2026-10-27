@@ -144,3 +144,11 @@ Não é necessário configurar Supabase nesta etapa. As fábricas em `lib/supaba
 O convite AMIGOS20 valida somente o roteiro de demonstração: não protege rotas nem libera conta real. A liberação de usuários exige Supabase Auth com convites administrativos, limite de membros, unicidade de códigos no banco, autorização, RLS e armazenamento privado. Nada disso está ativo nesta versão. Nunca use `service_role`, secret keys ou credenciais administrativas em variáveis `NEXT_PUBLIC_`.
 
 Veja [anexos e limites da Cloudflare](docs/anexos-e-cloudflare.md). A política do aplicativo foi definida para os testes; nenhum serviço Cloudflare foi provisionado. PWA, chamadas, push com o app fechado, autenticação real e comunicação entre pessoas ficam para etapas futuras.
+
+### Emojis e figurinhas — demonstração
+
+- Toque na carinha ao lado do clipe: selecione uma categoria ou busque um emoji em português. Ele entra no cursor da mensagem.
+- Na aba **Figurinhas**, use **Criar figurinha** para escolher uma imagem, girar, recortar ao centro e adicionar texto. Salve e toque na figurinha para enviar imediatamente, sem apagar o rascunho.
+- **Importar** aceita múltiplos arquivos PNG, JPG e WebP de até 5 MB/20 megapixels cada. Imagens são convertidas localmente em WebP estático de 512 × 512 pixels e até 100 KB, com margem e preservação da transparência existente. Não remove fundos automaticamente. Animações são achatadas; GIFs, pacotes `.wastickers` e links do WhatsApp não são importados. Isso não integra nem exporta pacotes para o WhatsApp.
+- Coleção de até 40 figurinhas salva no IndexedDB deste navegador/origem. Não sincroniza entre dispositivos ou endereços (por exemplo, localhost e IP). Excluir da coleção não apaga as mensagens já enviadas. Limpar dados do site remove a coleção; navegação privada pode descartá-la. Se o armazenamento falhar, um erro aparece.
+- As mensagens continuam temporárias na aba, sem upload. Prévias de figurinhas respeitam as opções de imagens/download automático e economia de dados.

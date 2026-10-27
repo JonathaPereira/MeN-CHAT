@@ -46,3 +46,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Emojis e figurinhas
+
+- Mantenha o seletor de emojis acessível no compositor; inserir no cursor preserva o rascunho. Figurinhas são imagens com `sticker: true`, respeitam preferências de prévias de fotos e são enviadas individualmente.
+- A coleção fica no IndexedDB, limitada a 40 itens. Normalize imagens locais para WebP estático de 512 × 512 e até 100 KB; não prometa integração com pacotes WhatsApp, remoção automática de fundo ou animação. Preserve transparência e trate falhas de armazenamento. Nenhum upload nesta etapa.

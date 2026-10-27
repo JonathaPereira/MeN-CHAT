@@ -23,6 +23,7 @@ export type Attachment = {
   size: number;
   kind: "image" | "video" | "document" | "audio";
   url: string;
+  sticker?: boolean;
 };
 export type ReadReceipt = { contactId: string; time: string };
 export type Message = {
