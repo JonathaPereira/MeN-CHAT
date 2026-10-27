@@ -38,7 +38,7 @@ export function ChatPanel({
   const [detail, setDetail] = useState<ChatDetail | null>(null);
   const detailOpen = detail !== null;
   const { settings } = usePreferences();
-  const { typing, setActiveChat, markRead } = useDemo();
+  const { typing, setActiveChat, markRead, snowballEvent } = useDemo();
   useEffect(() => {
     setActiveChat(inactive || detailOpen ? null : chat.id);
     if (!inactive && !detailOpen) markRead(chat.id);
@@ -59,6 +59,17 @@ export function ChatPanel({
   }, [chat.id, chat.messages.length, isTyping]);
   return (
     <section className="chat-panel" aria-label={`Conversa com ${chat.name}`}>
+      {snowballEvent?.chatId === chat.id && (
+        <div
+          key={snowballEvent.id}
+          className="snowball-burst"
+          aria-hidden="true"
+        >
+          <span>❄️</span>
+          <i>✧</i>
+          <i>✦</i>
+        </div>
+      )}
       <header className="chat-panel-header">
         <button
           className="icon-button mobile-only"
@@ -149,7 +160,7 @@ export function ChatPanel({
             return (
               <article
                 key={message.id}
-                className={`message-bubble ${!message.text && message.attachments.length === 1 && message.attachments[0].sticker ? "sticker-bubble" : ""} ${message.outgoing ? "message-outgoing" : "message-incoming"}`}
+                className={`message-bubble ${message.kind === "snowball" ? "snowball-message" : ""} ${!message.text && message.attachments.length === 1 && message.attachments[0].sticker ? "sticker-bubble" : ""} ${message.outgoing ? "message-outgoing" : "message-incoming"}`}
                 aria-label={
                   message.outgoing ? "Sua mensagem" : "Mensagem de demonstração"
                 }

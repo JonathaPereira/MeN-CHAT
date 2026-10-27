@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
-import { Plus, RotateCw, Trash2, Upload } from "lucide-react";
+import { Plus, RotateCw, Trash2, Upload, Snowflake } from "lucide-react";
+import { StickerCropEditor } from "./sticker-crop-editor";
+import { initialStickerCrop } from "@/lib/sticker-layout";
 import { Modal } from "@/components/modal";
 import { emojiCategories, searchEmojis } from "@/lib/emojis";
 import {
@@ -18,8 +20,12 @@ export function ExpressionPicker({
   onClose,
   onEmoji,
   onSticker,
+  onSnowball,
+  snowballUsed,
 }: {
   onClose: () => void;
+  onSnowball: () => void;
+  snowballUsed: boolean;
   onEmoji: (emoji: string) => void;
   onSticker: (sticker: Sticker) => void;
 }) {
@@ -33,6 +39,7 @@ export function ExpressionPicker({
   const [text, setText] = useState("");
   const [rotate, setRotate] = useState(0);
   const [crop, setCrop] = useState(false);
+  const [adjustments, setAdjustments] = useState({ ...initialStickerCrop });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -59,8 +66,8 @@ export function ExpressionPicker({
   }, []);
   useEffect(() => {
     if (image && canvas.current)
-      drawSticker(canvas.current, image, { rotate, crop, text });
-  }, [image, rotate, crop, text, tab]);
+      drawSticker(canvas.current, image, { rotate, crop, text, adjustments });
+  }, [image, rotate, crop, text, tab, adjustments]);
   function begin() {
     if (working.current) return false;
     working.current = true;
@@ -98,6 +105,7 @@ export function ExpressionPicker({
             setText("");
             setRotate(0);
             setCrop(false);
+            setAdjustments({ ...initialStickerCrop });
             break;
           }
           const target = document.createElement("canvas");
@@ -263,13 +271,11 @@ export function ExpressionPicker({
           />
           {image ? (
             <div className="sticker-editor">
-              <canvas
-                ref={canvas}
-                width={512}
-                height={512}
-                className="sticker-canvas"
-                aria-label="Prévia da figurinha"
-                role="img"
+              <StickerCropEditor
+                canvas={canvas}
+                value={adjustments}
+                onChange={setAdjustments}
+                disabled={busy}
               />
               <label className="field-label" htmlFor="sticker-name">
                 Nome da figurinha
@@ -402,6 +408,23 @@ export function ExpressionPicker({
             </>
           )}
         </>
+      )}
+      {!image && (
+        <section className="snowball-option">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onSnowball}
+            disabled={busy || snowballUsed}
+          >
+            <Snowflake size={18} />
+            {snowballUsed ? "Bola de neve já usada" : "Jogar bola de neve"}
+          </button>
+          <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">
+            Uma vez por pessoa nesta conversa. No teste, o aviso e a vibração
+            são simulados neste aparelho; o limite reinicia ao recarregar a aba.
+          </p>
+        </section>
       )}
       {busy && (
         <p role="status" className="demo-note mt-4">

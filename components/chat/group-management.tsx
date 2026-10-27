@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Crown, ShieldCheck, UserPlus, LogOut, Users } from "lucide-react";
 import { useDemo } from "@/components/demo-provider";
 import { Avatar } from "@/components/avatar";
@@ -32,6 +32,12 @@ export function GroupManagement({
     action: GroupAction;
     label: string;
   } | null>(null);
+  const confirmPanel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!confirmation) return;
+    confirmPanel.current?.scrollIntoView({ block: "center" });
+    confirmPanel.current?.focus({ preventScroll: true });
+  }, [confirmation]);
   const members = chatMembers(chat, contacts);
   const active = Boolean(chat.group?.selfMember);
   const admin = isGroupAdmin(chat, SELF);
@@ -96,6 +102,14 @@ export function GroupManagement({
         <p className="demo-note mb-5">
           Você saiu deste grupo. O histórico local está disponível apenas para
           consulta; você não pode enviar mensagens ou gerenciar participantes.
+        </p>
+      )}
+      {active && admin && (
+        <p className="demo-note mb-4">
+          {owner
+            ? "Você é dono: pode remover membros e administradores, exceto o criador."
+            : "Você é administrador: pode remover membros comuns. Somente o dono remove outros administradores; o criador é protegido."}{" "}
+          Toque em Remover e confirme na caixa que será exibida.
         </p>
       )}
       <ul className="space-y-2" aria-label="Participantes">
@@ -267,6 +281,8 @@ export function GroupManagement({
       )}
       {confirmation && (
         <div
+          ref={confirmPanel}
+          tabIndex={-1}
           className="group-confirmation"
           role="alertdialog"
           aria-labelledby="group-confirmation-title"

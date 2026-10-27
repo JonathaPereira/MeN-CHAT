@@ -26,7 +26,7 @@ export function Composer({ chatId }: { chatId: string }) {
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [voiceError, setVoiceError] = useState(false);
   const audioInput = useRef<HTMLInputElement>(null);
-  const { sendMessage, fileUrl, releaseUrl } = useDemo();
+  const { sendMessage, fileUrl, releaseUrl, throwSnowball, chats } = useDemo();
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const pendingRef = useRef<Attachment[]>([]);
@@ -141,6 +141,18 @@ export function Composer({ chatId }: { chatId: string }) {
       {expressions && (
         <ExpressionPicker
           onClose={() => setExpressions(false)}
+          snowballUsed={
+            chats
+              .find((chat) => chat.id === chatId)
+              ?.messages.some(
+                (message) => message.outgoing && message.kind === "snowball",
+              ) ?? false
+          }
+          onSnowball={() => {
+            const result = throwSnowball(chatId);
+            setError(result || "");
+            setExpressions(false);
+          }}
           onEmoji={(emoji) => {
             const field = messageInput.current;
             const start = field?.selectionStart ?? text.length;

@@ -8,6 +8,9 @@ export type Preferences = {
   browserAlerts: boolean;
   messagePreview: boolean;
   notificationSound: boolean;
+  snowballAlerts: boolean;
+  snowballVibration: boolean;
+  snowballEffects: boolean;
   onlyWhenAway: boolean;
   mutedChatIds: string[];
   autoImages: boolean;
@@ -29,6 +32,9 @@ export const defaultPreferences: Preferences = {
   browserAlerts: false,
   messagePreview: false,
   notificationSound: false,
+  snowballAlerts: true,
+  snowballVibration: true,
+  snowballEffects: true,
   onlyWhenAway: true,
   mutedChatIds: [],
   autoImages: true,
@@ -93,4 +99,15 @@ export function shouldLoadMedia(
     : kind === "audio"
       ? settings.autoAudio
       : settings.autoVideo;
+}
+
+export function shouldNotifySnowball(
+  settings: Preferences,
+  chatId: string,
+): boolean {
+  return (
+    settings.notificationsEnabled &&
+    settings.snowballAlerts &&
+    !settings.mutedChatIds.includes(chatId)
+  );
 }

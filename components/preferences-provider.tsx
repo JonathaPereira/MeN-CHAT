@@ -10,11 +10,13 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { vibrateSnowball } from "@/lib/snowball";
 import { Bell, X } from "lucide-react";
 import {
   defaultPreferences,
   parsePreferences,
   shouldNotify,
+  shouldNotifySnowball,
   type Preferences,
 } from "@/lib/preferences";
 
@@ -36,6 +38,7 @@ function snapshot() {
   }
 }
 type IncomingNotice = {
+  kind?: "snowball";
   chatId: string;
   title: string;
   text: string;
@@ -46,6 +49,7 @@ type PreferencesContextValue = {
   update: (patch: Partial<Preferences>) => boolean;
   notifyIncoming: (notice: IncomingNotice) => void;
   testNotification: () => void;
+  notifySnowball: (notice: Omit<IncomingNotice, "kind" | "away">) => boolean;
 };
 const Context = createContext<PreferencesContextValue | null>(null);
 
@@ -121,7 +125,12 @@ export function PreferencesProvider({
   const deliver = useCallback(
     (notice: IncomingNotice, test = false) => {
       const preferences = current.current;
-      if (!test && !shouldNotify(preferences, notice.chatId, notice.away))
+      if (
+        !test &&
+        !(notice.kind === "snowball"
+          ? shouldNotifySnowball(preferences, notice.chatId)
+          : shouldNotify(preferences, notice.chatId, notice.away))
+      )
         return;
       if (!preferences.notificationsEnabled) {
         showToast(
@@ -132,9 +141,13 @@ export function PreferencesProvider({
       }
       const body = preferences.messagePreview
         ? notice.text
-        : "Você recebeu uma mensagem de teste.";
+        : notice.kind === "snowball"
+          ? "Você recebeu uma bola de neve de teste."
+          : "Você recebeu uma mensagem de teste.";
       if (preferences.inAppAlerts || test) showToast(notice.title, body);
       playSound();
+      if (notice.kind === "snowball" && preferences.snowballVibration)
+        vibrateSnowball(navigator);
       if (
         preferences.browserAlerts &&
         typeof Notification !== "undefined" &&
@@ -182,6 +195,12 @@ export function PreferencesProvider({
         settings,
         update,
         notifyIncoming: deliver,
+        notifySnowball: (notice) => {
+          if (!shouldNotifySnowball(current.current, notice.chatId))
+            return false;
+          deliver({ ...notice, kind: "snowball", away: true });
+          return current.current.snowballEffects && current.current.inAppAlerts;
+        },
         testNotification: () => {
           prepareSound();
           deliver(

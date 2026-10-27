@@ -16,6 +16,7 @@ import { automatedReply } from "@/lib/auto-reply";
 import { generateUserCode } from "@/lib/user-code";
 import { chatMembers } from "@/lib/chat-privacy";
 import { applyGroupAction, SELF, type GroupAction } from "@/lib/group-rules";
+import { snowballError } from "@/lib/snowball";
 import { createDemoId } from "@/lib/demo-id";
 import type { Attachment, Chat, Contact, Profile, Message } from "@/types/chat";
 
@@ -62,6 +63,8 @@ type DemoContextValue = {
   profile: Profile;
   chats: Chat[];
   typing: Record<string, string[]>;
+  throwSnowball: (chatId: string) => string | null;
+  snowballEvent: { id: string; chatId: string } | null;
   setActiveChat: (id: string | null) => void;
   saveProfile: (profile: Profile) => boolean;
   registerProfile: (name: string) => boolean;
@@ -80,7 +83,7 @@ type DemoContextValue = {
 const DemoContext = createContext<DemoContextValue | null>(null);
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
-  const { notifyIncoming, settings } = usePreferences();
+  const { notifyIncoming, notifySnowball, settings } = usePreferences();
   const privacy = useRef(settings);
   useEffect(() => {
     privacy.current = settings;
@@ -98,11 +101,18 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [chats, setChats] = useState<Chat[]>(initialChats);
   const [typing, setTyping] = useState<Record<string, string[]>>({});
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const [snowballEvent, setSnowballEvent] = useState<{
+    id: string;
+    chatId: string;
+  } | null>(null);
+  const snowballTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const thrownSnowballs = useRef(new Set<string>());
   const urls = useRef(new Set<string>());
   useEffect(() => {
     const activeTimers = timers.current;
     const activeUrls = urls.current;
     return () => {
+      if (snowballTimer.current) clearTimeout(snowballTimer.current);
       activeTimers.forEach(clearTimeout);
       activeTimers.clear();
       activeUrls.forEach((url) => URL.revokeObjectURL(url));
@@ -207,6 +217,45 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         delete next[chatId];
         return next;
       });
+    }
+    return null;
+  }
+  function throwSnowball(chatId: string): string | null {
+    const target = chats.find((chat) => chat.id === chatId);
+    const error = snowballError(target);
+    if (error) return error;
+    if (thrownSnowballs.current.has(chatId))
+      return "Você já jogou sua bola de neve nesta conversa.";
+    thrownSnowballs.current.add(chatId);
+    const event = { id: createDemoId(), chatId };
+    const message: Message = {
+      id: event.id,
+      kind: "snowball",
+      text: "Você jogou uma bola de neve! ❄️",
+      outgoing: true,
+      time: new Intl.DateTimeFormat("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date()),
+      attachments: [],
+    };
+    setChats((current) =>
+      current.map((chat) =>
+        chat.id === chatId
+          ? { ...chat, messages: [...chat.messages, message] }
+          : chat,
+      ),
+    );
+    // Prévia local do recebimento; não há outros dispositivos conectados nesta etapa.
+    const animate = notifySnowball({
+      chatId,
+      title: "Bola de neve · simulação",
+      text: "Prévia do aviso de bola de neve nesta conversa.",
+    });
+    if (animate) {
+      setSnowballEvent(event);
+      if (snowballTimer.current) clearTimeout(snowballTimer.current);
+      snowballTimer.current = setTimeout(() => setSnowballEvent(null), 1200);
     }
     return null;
   }
@@ -318,6 +367,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         profile,
         chats,
         typing,
+        throwSnowball,
+        snowballEvent,
         setActiveChat,
         saveProfile,
         registerProfile: (name) =>

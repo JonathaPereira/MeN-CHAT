@@ -1,3 +1,4 @@
+import { stickerLayout, type StickerCrop } from "./sticker-layout";
 import { createDemoId } from "./demo-id";
 
 export type Sticker = {
@@ -39,22 +40,31 @@ export async function readStickerImage(file: File): Promise<HTMLImageElement> {
 export function drawSticker(
   canvas: HTMLCanvasElement,
   image: HTMLImageElement,
-  options: { rotate: number; crop: boolean; text: string },
+  options: {
+    rotate: number;
+    crop: boolean;
+    text: string;
+    adjustments?: StickerCrop;
+  },
 ) {
   canvas.width = canvas.height = 512;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Este navegador não oferece edição de imagens.");
-  const turns = options.rotate % 2;
-  const w = turns ? image.naturalHeight : image.naturalWidth;
-  const h = turns ? image.naturalWidth : image.naturalHeight;
-  const scale = options.crop
-    ? Math.max(480 / w, 480 / h)
-    : Math.min(480 / w, 480 / h);
+  const layout = stickerLayout(
+    image.naturalWidth,
+    image.naturalHeight,
+    options.rotate,
+    options.crop,
+    options.adjustments,
+  );
+  const scale = layout.scale;
   ctx.save();
   ctx.beginPath();
-  ctx.rect(16, 16, 480, 480);
+  if (options.adjustments?.shape === "circle")
+    ctx.arc(256, 256, 240, 0, Math.PI * 2);
+  else ctx.rect(16, 16, 480, 480);
   ctx.clip();
-  ctx.translate(256, 256);
+  ctx.translate(layout.centerX, layout.centerY);
   ctx.rotate((options.rotate * Math.PI) / 2);
   ctx.drawImage(
     image,
@@ -65,6 +75,12 @@ export function drawSticker(
   );
   ctx.restore();
   if (options.text.trim()) {
+    ctx.save();
+    if (options.adjustments?.shape === "circle") {
+      ctx.beginPath();
+      ctx.arc(256, 256, 240, 0, Math.PI * 2);
+      ctx.clip();
+    }
     ctx.font = "bold 38px sans-serif";
     ctx.textAlign = "center";
     ctx.lineJoin = "round";
@@ -73,6 +89,7 @@ export function drawSticker(
     ctx.fillStyle = "white";
     ctx.strokeText(options.text.trim(), 256, 460, 450);
     ctx.fillText(options.text.trim(), 256, 460, 450);
+    ctx.restore();
   }
 }
 export async function encodeSticker(

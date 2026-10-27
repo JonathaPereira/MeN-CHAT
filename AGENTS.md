@@ -51,3 +51,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - Mantenha o seletor de emojis acessível no compositor; inserir no cursor preserva o rascunho. Figurinhas são imagens com `sticker: true`, respeitam preferências de prévias de fotos e são enviadas individualmente.
 - A coleção fica no IndexedDB, limitada a 40 itens. Normalize imagens locais para WebP estático de 512 × 512 e até 100 KB; não prometa integração com pacotes WhatsApp, remoção automática de fundo ou animação. Preserve transparência e trate falhas de armazenamento. Nenhum upload nesta etapa.
+
+## Próximas integrações e bolas de neve
+
+- Roteiro autorizado: `docs/integracao-e-celular.md`. O usuário quer iniciar a integração em etapas. Sem projeto de teste configurado, prepare o roteiro, sem presumir credenciais ou provisionar serviços. Revalidar guias oficiais na implementação; não ativar rotas com dados reais sem Auth/RLS.
+- Bola de neve: uma vez por pessoa em cada conversa. Protótipo em memória, sem alertas ao reabrir histórico; futuro banco deve garantir unicidade por conversa/remetente. O teste mostra recebimento local, não entrega remota. Respeitar notificações, silenciamento, redução de movimento e opções de vibração/animação; não prometer vibração em Safari/iPhone ou em segundo plano.
+- Recorte deve salvar os mesmos ajustes da prévia. Confirmação de remoção de grupo deve ficar visível e receber foco; preserve as regras do criador e dos administradores.

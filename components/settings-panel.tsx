@@ -241,6 +241,30 @@ export function SettingsPanel() {
                   />
                 </div>
                 <section className="settings-group mt-5 p-5">
+                  <h2 className="text-sm font-semibold">Bolas de neve</h2>
+                  <Toggle
+                    title="Avisos de bola de neve"
+                    description="Avisa mesmo na conversa ativa. Respeita o controle geral e o silenciamento da conversa."
+                    setting="snowballAlerts"
+                  />
+                  <Toggle
+                    title="Vibração adicional"
+                    description="Um toque duplo ao receber uma bola de neve, se o aparelho e o navegador suportarem. iPhone/Safari não oferece esta API."
+                    setting="snowballVibration"
+                  />
+                  <Toggle
+                    title="Animação de bola de neve"
+                    description="Efeito curto na conversa. Respeita a preferência do aparelho de reduzir movimento."
+                    setting="snowballEffects"
+                  />
+                  <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+                    No teste, jogar mostra uma prévia local do recebimento. Não
+                    há envio entre aparelhos nem push com o app fechado. A
+                    vibração pode ser bloqueada pelo navegador ou aparelho e não
+                    é garantida em segundo plano.
+                  </p>
+                </section>
+                <section className="settings-group mt-5 p-5">
                   <h2 className="text-sm font-semibold">
                     Notificações do navegador
                   </h2>

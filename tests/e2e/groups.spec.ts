@@ -182,6 +182,8 @@ test("dono pode promover, revogar e remover participante com confirmação", asy
   await dialog
     .getByRole("button", { name: "Remover Lucas Santos do grupo", exact: true })
     .click();
+  await expect(dialog.getByRole("alertdialog")).toBeInViewport();
+  await expect(dialog.getByRole("alertdialog")).toBeFocused();
   await dialog
     .getByRole("alertdialog")
     .getByRole("button", { name: "Confirmar", exact: true })
@@ -196,4 +198,38 @@ test("dono pode promover, revogar e remover participante com confirmação", asy
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("admin remove membro comum com confirmação visível e não remove criador", async ({
+  page,
+}) => {
+  const dialog = await openGroup(page, "Família reunida");
+  await dialog
+    .getByRole("button", { name: "Remover Lucas Santos do grupo", exact: true })
+    .click();
+  const confirm = dialog.getByRole("alertdialog");
+  await expect(confirm).toBeInViewport();
+  await expect(confirm).toBeFocused();
+  await confirm.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await expect(
+    dialog
+      .getByRole("list", { name: "Participantes", exact: true })
+      .getByRole("listitem"),
+  ).toHaveCount(4);
+  await dialog
+    .getByRole("button", { name: "Remover Lucas Santos do grupo", exact: true })
+    .click();
+  await expect(confirm).toBeInViewport();
+  await confirm.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await expect(
+    dialog
+      .getByRole("list", { name: "Participantes", exact: true })
+      .getByRole("listitem"),
+  ).toHaveCount(3);
+  await expect(
+    dialog.getByRole("button", {
+      name: "Remover Ana Oliveira do grupo",
+      exact: true,
+    }),
+  ).toHaveCount(0);
 });

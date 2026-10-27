@@ -27,6 +27,7 @@ export type Attachment = {
 };
 export type ReadReceipt = { contactId: string; time: string };
 export type Message = {
+  kind?: "snowball";
   id: string;
   text: string;
   outgoing: boolean;
