@@ -5,13 +5,9 @@ export const metadata: Metadata = { title: "Cadastro por convite" };
 export default function RegisterPage() {
   return (
     <AuthShell>
-      <span className="eyebrow">TEM LUGAR PRA VOCÊ</span>
-      <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-        Faça parte do círculo.
-      </h2>
-      <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
-        Prepare seu perfil com o convite do administrador.
-      </p>
+      <h1 className="mt-6 text-center text-lg font-semibold">
+        Cadastro por convite
+      </h1>
       <AuthForm register />
     </AuthShell>
   );

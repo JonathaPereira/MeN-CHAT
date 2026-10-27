@@ -9,14 +9,21 @@ import {
   Download,
   MessageCircle,
   Palette,
+  ShieldCheck,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { usePreferences } from "@/components/preferences-provider";
 import type { Preferences } from "@/lib/preferences";
 
-type Section = "notifications" | "media" | "chat" | "appearance";
+type Section = "notifications" | "media" | "chat" | "appearance" | "privacy";
 const sections = [
+  {
+    id: "privacy",
+    title: "Privacidade",
+    description: "Código, busca, leitura e digitação",
+    icon: ShieldCheck,
+  },
   {
     id: "notifications",
     title: "Notificações",
@@ -172,6 +179,38 @@ export function SettingsPanel() {
           </div>
         ) : (
           <>
+            {section === "privacy" && (
+              <>
+                <div className="settings-group">
+                  <Toggle
+                    title="Mostrar meu código no perfil"
+                    description="Permite que os contatos vejam seu código ao abrir seu perfil. Você sempre pode ver seu próprio código."
+                    setting="showUserCode"
+                  />
+                  <Toggle
+                    title="Permitir busca pelo meu código"
+                    description="Permite encontrar seu perfil a partir de um código já conhecido. Ocultar o código no perfil não desativa esta opção."
+                    setting="allowCodeLookup"
+                  />
+                  <Toggle
+                    title="Confirmações de leitura"
+                    description="Na demonstração, permite ver confirmações de leitura e simula seu compartilhamento. Desativado, os detalhes ficam ocultos em conversas privadas e grupos."
+                    setting="readReceipts"
+                  />
+                  <Toggle
+                    title="Indicadores de digitação"
+                    description="Mostra quem está digitando, com avatar. Os indicadores desta versão são uma simulação local."
+                    setting="showTyping"
+                  />
+                </div>
+                <p className="demo-note mt-5">
+                  Estas preferências preparam a interface. Convites de uso
+                  único, validação de e-mail e privacidade entre contas reais
+                  ainda dependem da integração com o servidor. Não há outras
+                  pessoas conectadas.
+                </p>
+              </>
+            )}
             {section === "notifications" && (
               <>
                 <div className="settings-group">

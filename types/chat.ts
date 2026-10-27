@@ -10,6 +10,12 @@ export type Contact = {
   code: string;
   status: string;
   color: string;
+  privacy: {
+    showCode: boolean;
+    allowCodeLookup: boolean;
+    readReceipts: boolean;
+    showTyping: boolean;
+  };
 };
 export type Attachment = {
   id: string;
@@ -18,6 +24,7 @@ export type Attachment = {
   kind: "image" | "video" | "document" | "audio";
   url: string;
 };
+export type ReadReceipt = { contactId: string; time: string };
 export type Message = {
   id: string;
   text: string;
@@ -25,6 +32,7 @@ export type Message = {
   author?: string;
   time: string;
   attachments: Attachment[];
+  readBy?: ReadReceipt[];
 };
 export type Chat = {
   id: string;

@@ -215,6 +215,7 @@ export function ConversationList() {
               chat={selected}
               onBack={() => setListOpen(true)}
               onMenu={() => setMenuOpen(true)}
+              onOpenChat={openChat}
               inactive={(!isDesktop && listOpen) || menuOpen || Boolean(dialog)}
             />
           ) : (

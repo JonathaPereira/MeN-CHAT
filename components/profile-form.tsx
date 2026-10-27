@@ -9,6 +9,9 @@ import {
 } from "react";
 import Link from "next/link";
 import { ArrowLeft, Camera, Check, Copy, Save, Trash2 } from "lucide-react";
+import { Modal } from "@/components/modal";
+import { ProfilePreview } from "@/components/profile-preview";
+import { usePreferences } from "@/components/preferences-provider";
 import { useDemo } from "@/components/demo-provider";
 import { Avatar } from "@/components/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -31,6 +34,8 @@ export function ProfileForm() {
 
 function ProfileEditor() {
   const { profile, saveProfile } = useDemo();
+  const { settings, update } = usePreferences();
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [name, setName] = useState(profile.name);
   const [status, setStatus] = useState(profile.status);
   const [photo, setPhoto] = useState(profile.photo);
@@ -233,6 +238,40 @@ function ProfileEditor() {
                 de teste, não uma senha ou convite.
               </p>
             </div>
+            <div className="rounded-2xl border border-[var(--line)] p-4">
+              <button
+                type="button"
+                className="secondary-button mb-4 w-full"
+                onClick={() => setPreviewOpen(true)}
+              >
+                Ver como contatos veem meu perfil
+              </button>
+              <label className="flex items-center justify-between gap-4">
+                <span className="text-sm">Mostrar meu código no perfil</span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  aria-label="Mostrar meu código no perfil"
+                  checked={settings.showUserCode}
+                  onChange={(event) =>
+                    update({ showUserCode: event.target.checked })
+                  }
+                  className="setting-switch"
+                />
+              </label>
+              <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+                {settings.showUserCode
+                  ? "Visível para contatos na prévia do seu perfil."
+                  : "Oculto para contatos. Você continua vendo o próprio código."}{" "}
+                Preferência local de demonstração.
+              </p>
+              <Link
+                href="/configuracoes"
+                className="mt-3 inline-flex min-h-9 items-center text-xs font-medium text-[var(--accent)]"
+              >
+                Mais opções de privacidade
+              </Link>
+            </div>
             {error && (
               <p role="alert" className="form-error">
                 {error}
@@ -260,6 +299,19 @@ function ProfileEditor() {
             Conversas e anexos são temporários. Nenhuma conta real é criada.
           </p>
         </section>
+        {previewOpen && (
+          <Modal
+            title="Seu perfil para contatos"
+            onClose={() => setPreviewOpen(false)}
+          >
+            <ProfilePreview
+              name={profile.name}
+              status={profile.status}
+              photo={profile.photo}
+              code={settings.showUserCode ? profile.code : null}
+            />
+          </Modal>
+        )}
       </div>
     </main>
   );

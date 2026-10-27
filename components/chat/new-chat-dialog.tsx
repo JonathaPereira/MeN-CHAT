@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
+import { usePreferences } from "@/components/preferences-provider";
 import { Search, UserPlus, Users } from "lucide-react";
 import { contacts } from "@/lib/data/chat";
-import { normalizeUserCode } from "@/lib/user-code";
+import { findContactByCode, profileCode } from "@/lib/chat-privacy";
 import { useDemo } from "@/components/demo-provider";
 import { Modal } from "@/components/modal";
 import { Avatar } from "@/components/avatar";
@@ -17,15 +19,18 @@ export function NewChatDialog({
   onClose: () => void;
   onOpen: (id: string) => void;
 }) {
-  const { openPrivate, createGroup } = useDemo();
+  const { openPrivate, createGroup, profile } = useDemo();
+  const { settings } = usePreferences();
   const [code, setCode] = useState("");
   const [searched, setSearched] = useState(false);
   const [name, setName] = useState("");
   const [members, setMembers] = useState<string[]>([]);
   const [error, setError] = useState("");
-  const found = searched
-    ? contacts.find((contact) => contact.code === normalizeUserCode(code))
-    : undefined;
+  const found = searched ? findContactByCode(code, contacts) : undefined;
+  const selfFound =
+    searched &&
+    settings.allowCodeLookup &&
+    code.trim().toUpperCase() === profile.code;
   function submit(event: FormEvent) {
     event.preventDefault();
     if (group) {
@@ -78,7 +83,7 @@ export function NewChatDialog({
                         {contact.name}
                       </span>
                       <span className="text-xs text-[var(--muted)]">
-                        {contact.code}
+                        {profileCode(contact) ?? "Código oculto"}
                       </span>
                     </span>
                     <input
@@ -143,7 +148,22 @@ export function NewChatDialog({
       </form>
       {!group && searched && (
         <div className="mt-5" role="status">
-          {found ? (
+          {selfFound ? (
+            <div className="rounded-2xl border border-[var(--line)] p-4">
+              <div className="flex items-center gap-3">
+                <Avatar name={profile.name} photo={profile.photo} />
+                <p className="text-sm font-semibold">
+                  {profile.name} · seu perfil
+                </p>
+              </div>
+              <p className="mt-3 text-xs text-[var(--muted)]">
+                Este é seu próprio código. Prévia da busca neste navegador.
+              </p>
+              <Link href="/perfil" className="secondary-button mt-4 w-full">
+                Abrir meu perfil
+              </Link>
+            </div>
+          ) : found ? (
             <div className="rounded-2xl border border-[var(--line)] p-4">
               <div className="mb-4 flex items-center gap-3">
                 <Avatar name={found.name} color={found.color} />

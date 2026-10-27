@@ -14,8 +14,9 @@ import { usePreferences } from "@/components/preferences-provider";
 import { contacts, initialChats, initialProfile } from "@/lib/data/chat";
 import { automatedReply } from "@/lib/auto-reply";
 import { generateUserCode } from "@/lib/user-code";
+import { chatMembers } from "@/lib/chat-privacy";
 import { createDemoId } from "@/lib/demo-id";
-import type { Attachment, Chat, Contact, Profile } from "@/types/chat";
+import type { Attachment, Chat, Contact, Profile, Message } from "@/types/chat";
 
 const PROFILE_KEY = "mn-chat-demo-profile-v1";
 const initialSnapshot = JSON.stringify(initialProfile);
@@ -59,7 +60,7 @@ function parseProfile(snapshot: string): Profile {
 type DemoContextValue = {
   profile: Profile;
   chats: Chat[];
-  typing: string[];
+  typing: Record<string, string[]>;
   setActiveChat: (id: string | null) => void;
   saveProfile: (profile: Profile) => boolean;
   registerProfile: (name: string) => boolean;
@@ -77,7 +78,11 @@ type DemoContextValue = {
 const DemoContext = createContext<DemoContextValue | null>(null);
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
-  const { notifyIncoming } = usePreferences();
+  const { notifyIncoming, settings } = usePreferences();
+  const privacy = useRef(settings);
+  useEffect(() => {
+    privacy.current = settings;
+  }, [settings]);
   const activeChat = useRef<string | null>(null);
   const setActiveChat = useCallback((id: string | null) => {
     activeChat.current = id;
@@ -89,7 +94,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   );
   const profile = useMemo(() => parseProfile(snapshot), [snapshot]);
   const [chats, setChats] = useState<Chat[]>(initialChats);
-  const [typing, setTyping] = useState<string[]>([]);
+  const [typing, setTyping] = useState<Record<string, string[]>>({});
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const urls = useRef(new Set<string>());
   useEffect(() => {
@@ -174,10 +179,14 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     attachments: Attachment[],
   ) {
     if (!text.trim() && !attachments.length) return;
-    const message = {
+    const target = chats.find((chat) => chat.id === chatId);
+    if (!target) return;
+    const members = chatMembers(target, contacts);
+    const message: Message = {
       id: createDemoId(),
       text: text.trim(),
       outgoing: true,
+      readBy: [],
       time: new Intl.DateTimeFormat("pt-BR", {
         hour: "2-digit",
         minute: "2-digit",
@@ -193,9 +202,13 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     );
     const previous = timers.current.get(chatId);
     if (previous) clearTimeout(previous);
-    setTyping((current) =>
-      current.includes(chatId) ? current : [...current, chatId],
-    );
+    setTyping((current) => ({
+      ...current,
+      [chatId]: members
+        .filter((contact) => contact.privacy.showTyping)
+        .slice(0, 2)
+        .map((contact) => contact.id),
+    }));
     timers.current.set(
       chatId,
       setTimeout(() => {
@@ -203,7 +216,10 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           id: createDemoId(),
           text: automatedReply(text, attachments.length > 0),
           outgoing: false,
-          author: "Assistente de teste",
+          author:
+            members[0]?.id === "assistant"
+              ? "Assistente de teste"
+              : `${members[0]?.name ?? "Participante"} · simulação`,
           time: new Intl.DateTimeFormat("pt-BR", {
             hour: "2-digit",
             minute: "2-digit",
@@ -225,12 +241,35 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
               ? {
                   ...chat,
                   unread: away ? chat.unread + 1 : 0,
-                  messages: [...chat.messages, reply],
+                  messages: [
+                    ...chat.messages.map((item) =>
+                      item.id === message.id
+                        ? {
+                            ...item,
+                            readBy: privacy.current.readReceipts
+                              ? members
+                                  .filter(
+                                    (contact) => contact.privacy.readReceipts,
+                                  )
+                                  .map((contact) => ({
+                                    contactId: contact.id,
+                                    time: reply.time,
+                                  }))
+                              : [],
+                          }
+                        : item,
+                    ),
+                    reply,
+                  ],
                 }
               : chat,
           ),
         );
-        setTyping((current) => current.filter((id) => id !== chatId));
+        setTyping((current) => {
+          const next = { ...current };
+          delete next[chatId];
+          return next;
+        });
         timers.current.delete(chatId);
       }, 1100),
     );

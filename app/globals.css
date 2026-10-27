@@ -716,7 +716,7 @@
 }
 .composer-row {
   display: flex;
-  width: min(96%, 1280px);
+  width: min(100%, 1440px);
   margin-inline: auto;
   align-items: flex-end;
   gap: 8px;
@@ -743,11 +743,7 @@
   color: var(--accent);
   background: var(--accent-soft);
 }
-.attach-button span {
-  display: none;
-  font-size: 12px;
-  font-weight: 500;
-}
+
 .attach-button:hover {
   border-color: var(--accent);
 }
@@ -789,11 +785,6 @@
     display: none;
   }
 }
-@media (min-width: 1024px) {
-  .attach-button span {
-    display: inline;
-  }
-}
 @media (max-width: 767px) {
   .conversation-sidebar.mobile-list-active {
     display: flex;
@@ -815,5 +806,192 @@
   }
   .voice-controls:has(.voice-preview) .voice-actions {
     margin-left: auto;
+  }
+}
+
+/* Acesso: somente marca e formulário, com animação de entrada discreta. */
+.auth-minimal {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 88px 20px 40px;
+  background:
+    radial-gradient(ellipse at 50% 0, var(--accent-soft), transparent 65%),
+    var(--canvas);
+}
+.auth-theme {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 36px 30px 28px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: var(--panel);
+  box-shadow: 0 22px 70px -35px #0d392b35;
+  animation: auth-appear 0.55s ease-out both;
+}
+.auth-logo {
+  display: flex;
+  justify-content: center;
+}
+.menchat-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 15px;
+  background: #196b50;
+  color: white;
+}
+.brand-word {
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.9px;
+}
+.brand-word span {
+  font-weight: 450;
+}
+.brand-large .brand-mark {
+  width: 58px;
+  height: 58px;
+  border-radius: 21px;
+  box-shadow: 0 7px 24px -10px #196b5070;
+}
+.brand-large .brand-word {
+  font-size: 32px;
+}
+.auth-card form {
+  animation: auth-appear 0.6s 0.08s ease-out both;
+}
+.auth-disclosure {
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--muted);
+  text-align: center;
+}
+@keyframes auth-appear {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 380px) {
+  .auth-card {
+    padding: 28px 22px 24px;
+  }
+  .auth-theme {
+    top: 16px;
+    right: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-card,
+  .auth-card form {
+    animation: none;
+  }
+}
+.contact-title {
+  text-align: left;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 4px;
+}
+.contact-title:hover {
+  text-decoration-color: var(--accent);
+}
+.profile-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.receipt-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 3px 5px;
+  border-radius: 6px;
+  color: var(--accent);
+}
+.receipt-button:hover {
+  background: var(--accent-soft);
+}
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.typing-avatars {
+  display: flex;
+  flex-shrink: 0;
+}
+.typing-avatars > span + span {
+  margin-left: -7px;
+}
+.typing-avatars .avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  font-size: 10px;
+  border: 2px solid var(--panel);
+}
+.typing-dots {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.typing-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: typing-dot 1s infinite ease-in-out;
+}
+.typing-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes typing-dot {
+  0%,
+  70%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots i {
+    animation: none;
   }
 }

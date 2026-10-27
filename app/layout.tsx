@@ -6,8 +6,8 @@ import { DemoProvider } from "@/components/demo-provider";
 
 export const metadata: Metadata = {
   title: {
-    default: "M&N CHAT · Perto de quem importa",
-    template: "%s · M&N CHAT",
+    default: "MenChat",
+    template: "%s · MenChat",
   },
   description:
     "Um espaço para conversar com seus amigos e sua família. Protótipo visual.",

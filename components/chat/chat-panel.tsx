@@ -1,8 +1,19 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, MoreHorizontal, Bot, Check, Settings } from "lucide-react";
+import {
+  ArrowLeft,
+  MoreHorizontal,
+  Bot,
+  Check,
+  CheckCheck,
+  Settings,
+} from "lucide-react";
+import { ChatDetailsDialog, type ChatDetail } from "./chat-details-dialog";
+import { TypingIndicator } from "./typing-indicator";
+import { usePreferences } from "@/components/preferences-provider";
+import { chatMembers, visibleReaders } from "@/lib/chat-privacy";
 import { Avatar } from "@/components/avatar";
 import { useDemo } from "@/components/demo-provider";
 import { contacts } from "@/lib/data/chat";
@@ -14,21 +25,33 @@ export function ChatPanel({
   chat,
   onBack,
   onMenu,
+  onOpenChat,
   inactive = false,
 }: {
   chat: Chat;
   onBack: () => void;
   onMenu: () => void;
+  onOpenChat: (id: string) => void;
   inactive?: boolean;
 }) {
+  const [detail, setDetail] = useState<ChatDetail | null>(null);
+  const detailOpen = detail !== null;
+  const { settings } = usePreferences();
   const { typing, setActiveChat, markRead } = useDemo();
   useEffect(() => {
-    setActiveChat(inactive ? null : chat.id);
-    if (!inactive) markRead(chat.id);
+    setActiveChat(inactive || detailOpen ? null : chat.id);
+    if (!inactive && !detailOpen) markRead(chat.id);
     return () => setActiveChat(null);
-  }, [chat.id, setActiveChat, markRead, inactive]);
+  }, [chat.id, setActiveChat, markRead, inactive, detailOpen]);
   const scroller = useRef<HTMLDivElement>(null);
-  const isTyping = typing.includes(chat.id);
+  const members = chatMembers(chat, contacts);
+  const typingPeople = settings.showTyping
+    ? members.filter(
+        (member) =>
+          member.privacy.showTyping && typing[chat.id]?.includes(member.id),
+      )
+    : [];
+  const isTyping = typingPeople.length > 0;
   useEffect(() => {
     if (scroller.current)
       scroller.current.scrollTop = scroller.current.scrollHeight;
@@ -45,7 +68,25 @@ export function ChatPanel({
         </button>
         <Avatar name={chat.name} color={chat.color} />
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-sm font-semibold">{chat.name}</h2>
+          <h2 className="truncate text-sm font-semibold">
+            <button
+              className="contact-title"
+              title={
+                chat.kind === "group"
+                  ? "Ver participantes do grupo"
+                  : "Ver perfil do contato"
+              }
+              onClick={() =>
+                setDetail(
+                  chat.kind === "group"
+                    ? { kind: "group" }
+                    : { kind: "contact", contactId: chat.memberIds[0] },
+                )
+              }
+            >
+              {chat.name}
+            </button>
+          </h2>
           <p className="mt-1 truncate text-xs text-[var(--muted)]">
             {chat.kind === "group"
               ? `${chat.memberIds.length + 1} participantes fictícios · você incluído`
@@ -80,7 +121,9 @@ export function ChatPanel({
       >
         <div className="mb-6 text-center">
           <span className="rounded-lg bg-[var(--panel)] px-3 py-1.5 text-[10px] text-[var(--muted)]">
-            CONVERSA DE DEMONSTRAÇÃO
+            {chat.kind === "person"
+              ? "CONVERSA PRIVADA · DEMONSTRAÇÃO"
+              : "MENSAGENS PARA O GRUPO · DEMONSTRAÇÃO"}
           </span>
         </div>
         <div
@@ -96,46 +139,78 @@ export function ChatPanel({
               automática de teste.
             </p>
           )}
-          {chat.messages.map((message) => (
-            <article
-              key={message.id}
-              className={`message-bubble ${message.outgoing ? "message-outgoing" : "message-incoming"}`}
-              aria-label={
-                message.outgoing ? "Sua mensagem" : "Mensagem de demonstração"
-              }
-            >
-              {!message.outgoing && message.author && (
-                <p className="mb-1 text-xs font-semibold text-[var(--accent)]">
-                  {message.author}
-                </p>
-              )}
-              {message.attachments.map((attachment) => (
-                <AttachmentPreview
-                  key={attachment.id}
-                  attachment={attachment}
-                />
-              ))}
-              {message.text && (
-                <p className="message-text whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]">
-                  {message.text}
-                </p>
-              )}
-              <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-[var(--muted)]">
-                <time>{message.time}</time>
-                {message.outgoing && (
-                  <Check size={12} aria-label="Adicionada localmente" />
+          {chat.messages.map((message) => {
+            const readers = settings.readReceipts
+              ? visibleReaders(chat, message, contacts)
+              : [];
+            return (
+              <article
+                key={message.id}
+                className={`message-bubble ${message.outgoing ? "message-outgoing" : "message-incoming"}`}
+                aria-label={
+                  message.outgoing ? "Sua mensagem" : "Mensagem de demonstração"
+                }
+              >
+                {!message.outgoing && message.author && (
+                  <p className="mb-1 text-xs font-semibold text-[var(--accent)]">
+                    {message.author}
+                  </p>
                 )}
-              </div>
-            </article>
-          ))}
+                {message.attachments.map((attachment) => (
+                  <AttachmentPreview
+                    key={attachment.id}
+                    attachment={attachment}
+                  />
+                ))}
+                {message.text && (
+                  <p className="message-text whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]">
+                    {message.text}
+                  </p>
+                )}
+                <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-[var(--muted)]">
+                  <time>{message.time}</time>
+                  {message.outgoing &&
+                    (settings.readReceipts ? (
+                      <button
+                        className="receipt-button"
+                        aria-label={`Ver quem viu a mensagem: ${message.text.slice(0, 50) || "Anexo"}`}
+                        onClick={() =>
+                          setDetail({ kind: "receipt", messageId: message.id })
+                        }
+                      >
+                        {readers.length ? (
+                          <CheckCheck size={14} />
+                        ) : (
+                          <Check size={13} />
+                        )}
+                        <span>
+                          {readers.length
+                            ? chat.kind === "group"
+                              ? `${readers.length}/${members.length} viram`
+                              : "Vista"
+                            : "Enviada"}
+                        </span>
+                      </button>
+                    ) : (
+                      <Check size={12} aria-label="Adicionada localmente" />
+                    ))}
+                </div>
+              </article>
+            );
+          })}
         </div>
-        {isTyping && (
-          <p role="status" className="mt-4 text-xs text-[var(--accent)]">
-            Assistente de teste digitando…
-          </p>
-        )}
+        {isTyping && <TypingIndicator people={typingPeople} />}
       </div>
       <Composer key={chat.id} chatId={chat.id} />
+      {detail && (
+        <ChatDetailsDialog
+          chat={chat}
+          detail={detail}
+          onClose={() => setDetail(null)}
+          onDetail={setDetail}
+          onOpenChat={onOpenChat}
+        />
+      )}
     </section>
   );
 }

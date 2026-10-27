@@ -155,7 +155,6 @@ export function Composer({ chatId }: { chatId: string }) {
           onClick={() => input.current?.click()}
         >
           <Paperclip size={22} aria-hidden="true" />
-          <span>Anexar</span>
         </button>
         <label htmlFor="message" className="sr-only">
           Mensagem

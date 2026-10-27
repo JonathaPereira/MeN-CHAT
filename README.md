@@ -1,4 +1,4 @@
-# M&N CHAT
+# MenChat
 
 Um espaço para até 20 amigos e familiares, com acesso futuro exclusivamente por convite. Nesta etapa, você pode testar a interface e conversar com um assistente automático local, sem contas reais e sem outras pessoas conectadas.
 
@@ -42,7 +42,7 @@ A configuração de desenvolvimento autoriza automaticamente os IPv4 da máquina
 
 ## O que testar
 
-1. **Tema:** use sol/lua desde o login ou no menu do chat. A preferência é salva no navegador; sem preferência, segue o sistema.
+1. **Tema e login:** a tela contém somente a marca MenChat, o formulário e as ações de acesso de demonstração. A entrada tem animação discreta e respeita redução de movimento. Use sol/lua desde o login ou no menu do chat. A preferência é salva no navegador; sem preferência, segue o sistema.
 2. **Login e cadastro:** ambos são demonstrações, não autenticação. Para cadastrar um perfil fictício, preencha nome, e-mail, senha com pelo menos oito caracteres, confirmação e convite **AMIGOS20**. Não use sua senha real. E-mail e senha não são enviados nem armazenados.
 3. **Perfil:** edite nome e status, selecione/remova uma foto e salve. O perfil fica somente no navegador atual. A foto é reduzida localmente para até 256 × 256 pixels; aceita JPG/PNG/WebP de até 2 MB.
 4. **Chat automatizado:** `/conversas` abre diretamente o **Assistente M&N**. No desktop, usuários e grupos ficam fixos à esquerda; a conversa ocupa toda a área restante até a borda direita, sem faixas vazias externas. No celular, a seta alterna entre conversa e lista. Envie uma mensagem e aguarde cerca de um segundo. A engrenagem abre as configurações; os três pontos mantêm as ações adicionais. É uma resposta programada local, sem IA externa. Os demais contatos são fictícios e também recebem respostas identificadas do assistente para testar a interface.
@@ -50,10 +50,22 @@ A configuração de desenvolvimento autoriza automaticamente os IPv4 da máquina
 6. **Grupos:** no menu ou na lista de conversas, clique em “Criar grupo”, informe um nome e selecione ao menos um participante fictício. Você é incluído automaticamente. O assistente também responde nos grupos de teste.
 7. **Anexos:** use o clipe, selecione arquivos, remova se desejar e envie a prévia local. Fotos até 5 MB, vídeos até 25 MB, áudios/documentos até 10 MB; no máximo cinco anexos por mensagem. Arquivos não vão para nenhuma nuvem.
 8. **Mensagem de voz:** clique no microfone para começar (na primeira vez, permita o acesso ao microfone). Clique na seta “Enviar áudio” para parar e enviar diretamente, sem passos intermediários de anexo. Você também pode descartar pela lixeira ou, opcionalmente, parar para ouvir antes de enviar. Grave até 2 minutos; ao atingir o limite, a gravação para e fica disponível para ouvir/enviar. O microfone é liberado ao parar, fechar ou trocar de conversa. Pelo celular em HTTP no Wi-Fi, a gravação não está disponível: use “Escolher áudio do aparelho”. Gravação pelo microfone exige HTTPS ou localhost, além de suporte a MediaRecorder e permissão.
-9. **Configurações:** clique na engrenagem visível no cabeçalho do chat ou da lista. Os submenus são Notificações, Dados e armazenamento, Conversas e voz e Aparência. As preferências são locais ao navegador e valem para a mesma interface web em computador e celular.
-10. **Responsividade:** experimente janela estreita, tema escuro, mensagens longas, Shift+Enter para quebra de linha, grupos e anexos. No desktop, a lista permanece visível; no celular, use a seta do cabeçalho para voltar à lista. Escape ou o botão de fechar recolhe os menus adicionais. O clipe “Anexar arquivo” fica visível ao lado do campo de mensagem.
+9. **Configurações:** clique na engrenagem visível no cabeçalho do chat ou da lista. Os submenus são Privacidade, Notificações, Dados e armazenamento, Conversas e voz e Aparência. As preferências são locais ao navegador e valem para a mesma interface web em computador e celular.
+10. **Responsividade:** experimente janela estreita, tema escuro, mensagens longas, Shift+Enter para quebra de linha, grupos e anexos. No desktop, a lista permanece visível; no celular, use a seta do cabeçalho para voltar à lista. Escape ou o botão de fechar recolhe os menus adicionais. O botão de anexar usa somente o clipe, com rótulo acessível. O campo de mensagem foi ampliado, mantendo os controles visíveis.
 
 Conversas, grupos, mensagens e anexos existem somente na memória desta aba e desaparecem ao recarregar. Preferências, nome, status, foto e código do perfil persistem no armazenamento local desse navegador. Para apagar esse perfil de teste, limpe os dados do site nas configurações do navegador. Tema, perfil e preferências são compartilhados entre abas deste navegador; não há sincronização de mensagens.
+
+## Perfis, leituras e digitação — demonstração
+
+Clique no nome do contato no cabeçalho para abrir o perfil e ver seu código, quando permitido. No nome do grupo, abra os participantes e visite seus perfis. O botão “Enviar mensagem” abre a conversa privada correspondente.
+
+Em Meu perfil, “Ver como contatos veem meu perfil” mostra a prévia, respeitando a visibilidade do código. Em Configurações → Privacidade, você pode ocultar o código, impedir busca pelo próprio código e desativar confirmações de leitura ou indicadores de digitação. As opções persistem neste navegador.
+
+Nas mensagens enviadas, clique na confirmação para abrir “Quem viu”. Em grupos, apenas membros aparecem; contatos que não compartilham confirmação ficam com status indisponível. Nome e avatar identificam quem está digitando. As leituras e a digitação são simuladas, sem outras pessoas conectadas. Textos privados não aparecem nos grupos e vice-versa na memória da demonstração.
+
+Para testar privacidade alheia: Ana mostra o código; Lucas oculta o código no perfil e não compartilha leitura; Júlia desabilitou a busca por código. Códigos fixos e essas preferências pertencem a contatos inteiramente fictícios.
+
+O fluxo de convite real está documentado em [Convites e privacidade](docs/convites-e-privacidade.md): uso único, validade, vínculo ao e-mail e uma verificação independente enviada ao e-mail ao aceitar. O link sozinho não deverá conceder acesso. AMIGOS20 permanece apenas um código de demonstração; essa segurança real ainda depende de Supabase Auth, banco de dados e RLS.
 
 ## Como as configurações se comportam
 

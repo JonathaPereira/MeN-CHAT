@@ -41,7 +41,15 @@ export const contacts: Contact[] = [
     status: "Bora marcar alguma coisa?",
     color: "lavender",
   },
-];
+].map((contact) => ({
+  ...contact,
+  privacy: {
+    showCode: contact.id !== "lucas",
+    allowCodeLookup: contact.id !== "julia",
+    readReceipts: contact.id !== "lucas",
+    showTyping: true,
+  },
+}));
 export const initialChats: Chat[] = [
   {
     id: "assistant-chat",
@@ -79,6 +87,7 @@ export const initialChats: Chat[] = [
       },
       {
         id: "f2",
+        readBy: [{ contactId: "ana", time: "09:34" }],
         text: "Bom dia! Como vocês estão?",
         outgoing: true,
         time: "09:32",
@@ -111,6 +120,7 @@ export const initialChats: Chat[] = [
       },
       {
         id: "a2",
+        readBy: [{ contactId: "ana", time: "11:37" }],
         text: "Tudo sim! E com você?",
         outgoing: true,
         time: "11:36",

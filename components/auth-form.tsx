@@ -136,12 +136,8 @@ export function AuthForm({ register = false }: { register?: boolean }) {
             </div>
           </>
         )}
-        <p className="demo-note">
-          Demonstração local.{" "}
-          {register
-            ? "Cria apenas um perfil neste navegador."
-            : "Não verifica credenciais nem abre uma sessão real."}{" "}
-          E-mail e senha não são salvos ou enviados. Use dados fictícios.
+        <p className="auth-disclosure">
+          Modo de teste · use dados fictícios. Senhas não são salvas.
         </p>
         {error && (
           <p role="alert" className="form-error">

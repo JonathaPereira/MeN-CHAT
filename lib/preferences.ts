@@ -1,4 +1,8 @@
 export type Preferences = {
+  showUserCode: boolean;
+  allowCodeLookup: boolean;
+  readReceipts: boolean;
+  showTyping: boolean;
   notificationsEnabled: boolean;
   inAppAlerts: boolean;
   browserAlerts: boolean;
@@ -16,6 +20,10 @@ export type Preferences = {
   noiseSuppression: boolean;
 };
 export const defaultPreferences: Preferences = {
+  showUserCode: true,
+  allowCodeLookup: true,
+  readReceipts: true,
+  showTyping: true,
   notificationsEnabled: true,
   inAppAlerts: true,
   browserAlerts: false,
