@@ -14,6 +14,7 @@ import { ChatDetailsDialog, type ChatDetail } from "./chat-details-dialog";
 import { TypingIndicator } from "./typing-indicator";
 import { usePreferences } from "@/components/preferences-provider";
 import { chatMembers, visibleReaders } from "@/lib/chat-privacy";
+import { groupMemberIds } from "@/lib/group-rules";
 import { Avatar } from "@/components/avatar";
 import { useDemo } from "@/components/demo-provider";
 import { contacts } from "@/lib/data/chat";
@@ -89,7 +90,9 @@ export function ChatPanel({
           </h2>
           <p className="mt-1 truncate text-xs text-[var(--muted)]">
             {chat.kind === "group"
-              ? `${chat.memberIds.length + 1} participantes fictícios · você incluído`
+              ? chat.group?.selfMember
+                ? `${groupMemberIds(chat).length} participantes fictícios · você incluído`
+                : "Você saiu deste grupo"
               : contacts.find((contact) => contact.id === chat.memberIds[0])
                   ?.status}
           </p>
@@ -201,7 +204,13 @@ export function ChatPanel({
         </div>
         {isTyping && <TypingIndicator people={typingPeople} />}
       </div>
-      <Composer key={chat.id} chatId={chat.id} />
+      {chat.kind !== "group" || chat.group?.selfMember ? (
+        <Composer key={chat.id} chatId={chat.id} />
+      ) : (
+        <p className="group-left-banner" role="status">
+          Você saiu do grupo. Envio de mensagens indisponível.
+        </p>
+      )}
       {detail && (
         <ChatDetailsDialog
           chat={chat}

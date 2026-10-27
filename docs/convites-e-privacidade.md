@@ -47,3 +47,15 @@ Encontrar um perfil não dá acesso ao histórico de outra conversa. Uma nova co
 - Realtime e presença: autorização por participação, inclusive após remoção de um grupo; sem assinar uma tabela global de mensagens para depois filtrar somente no cliente.
 
 Antes de convidar pessoas reais, a integração deverá testar e-mail diferente, link repassado, OTP incorreto, expiração, revogação, consumo concorrente, colisões de código, buscas desativadas e tentativas de ler mensagens/anexos de outros grupos por API. Esses cenários de infraestrutura ainda não foram implementados ou validados.
+
+## Administração de grupos
+
+Na demonstração, o criador tem identidade imutável, o dono tem a propriedade atual e a lista de administradores é separada. Criar um grupo dá ao usuário os três atributos. Transferir propriedade preserva o criador e mantém o antigo dono como administrador até sua saída voluntária.
+
+O criador original jamais pode ser removido ou rebaixado por outro participante, inclusive pelo dono seguinte. O dono atual também não pode ser removido por outros administradores. Para sair com outros membros presentes, o dono precisa primeiro transferir a propriedade a um participante existente. Se for o último membro, sua saída encerra a propriedade; o histórico local permanece apenas para consulta.
+
+Administradores podem adicionar pelo código de um perfil fictício já cadastrado e promover membros. Só o dono revoga administradores ou remove outro administrador. Os demais administradores removem apenas membros comuns. Todos os caminhos verificam participação atual, duplicatas e limite de 20 pessoas. Quem saiu não administra ou envia mensagens; respostas automáticas pendentes são canceladas.
+
+Antes da liberação real, `creator_id` deverá ser imutável no banco. As operações de associação, remoção, promoção, transferência e saída devem validar a identidade autenticada no servidor e manter atomicamente um dono ativo enquanto houver membros. Uma remoção administrativa nunca poderá atingir o criador; sua saída precisa ser uma ação autenticada dele próprio. APIs de exclusão e atualizações diretas não podem contornar essas invariantes. A unicidade de associação e o limite de membros também precisam ser garantidos em transação.
+
+Adicionar por código ao grupo e convidar alguém para o aplicativo são fluxos diferentes. O administrador do grupo só poderá adicionar pessoas que já têm uma conta convidada e ativa, respeitando a privacidade de busca. Isso não substitui o convite de cadastro vinculado ao e-mail, de uso único e com verificação independente.

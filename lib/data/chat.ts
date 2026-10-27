@@ -71,6 +71,12 @@ export const initialChats: Chat[] = [
   },
   {
     id: "familia",
+    group: {
+      creatorId: "ana",
+      ownerId: "ana",
+      adminIds: ["ana", "self"],
+      selfMember: true,
+    },
     name: "Família reunida",
     kind: "group",
     memberIds: ["ana", "lucas", "julia"],
@@ -137,6 +143,12 @@ export const initialChats: Chat[] = [
   },
   {
     id: "amigos",
+    group: {
+      creatorId: "pedro",
+      ownerId: "pedro",
+      adminIds: ["pedro"],
+      selfMember: true,
+    },
     name: "Os de sempre",
     kind: "group",
     memberIds: ["pedro", "ana"],

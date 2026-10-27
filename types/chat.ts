@@ -34,10 +34,17 @@ export type Message = {
   attachments: Attachment[];
   readBy?: ReadReceipt[];
 };
+export type GroupInfo = {
+  creatorId: string;
+  ownerId: string | null;
+  adminIds: string[];
+  selfMember: boolean;
+};
 export type Chat = {
   id: string;
   name: string;
   kind: "person" | "group";
+  group?: GroupInfo;
   memberIds: string[];
   color: string;
   unread: number;

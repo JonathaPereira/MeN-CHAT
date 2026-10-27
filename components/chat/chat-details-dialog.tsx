@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, MessageCircle, Users, Eye } from "lucide-react";
+import { ArrowLeft, MessageCircle, Eye } from "lucide-react";
+import { GroupManagement } from "./group-management";
 import { Modal } from "@/components/modal";
 import { ProfilePreview } from "@/components/profile-preview";
 import { Avatar } from "@/components/avatar";
@@ -27,7 +28,7 @@ export function ChatDetailsDialog({
   onDetail: (detail: ChatDetail) => void;
   onOpenChat: (id: string) => void;
 }) {
-  const { openPrivate, profile } = useDemo();
+  const { openPrivate } = useDemo();
   const { settings } = usePreferences();
   const members = chatMembers(chat, contacts);
   const contact =
@@ -86,49 +87,10 @@ export function ChatDetailsDialog({
         </>
       )}
       {detail.kind === "group" && (
-        <>
-          <div className="mb-6 flex items-center gap-3">
-            <Users size={24} className="text-[var(--accent)]" />
-            <div>
-              <h3 className="font-semibold">{chat.name}</h3>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Mensagens para os {members.length + 1} participantes ·
-                demonstração
-              </p>
-            </div>
-          </div>
-          <ul className="space-y-2" aria-label="Participantes">
-            <li className="contact-choice">
-              <Avatar name={profile.name} photo={profile.photo} />
-              <span className="text-sm font-medium">
-                {profile.name}{" "}
-                <span className="text-xs font-normal text-[var(--muted)]">
-                  (você)
-                </span>
-              </span>
-            </li>
-            {members.map((member) => (
-              <li key={member.id}>
-                <button
-                  className="contact-choice w-full text-left"
-                  onClick={() =>
-                    onDetail({ kind: "contact", contactId: member.id })
-                  }
-                >
-                  <Avatar name={member.name} color={member.color} />
-                  <span className="min-w-0 flex-1">
-                    <strong className="block truncate text-sm font-medium">
-                      {member.name}
-                    </strong>
-                    <span className="text-xs text-[var(--muted)]">
-                      Ver perfil
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
+        <GroupManagement
+          chat={chat}
+          onContact={(id) => onDetail({ kind: "contact", contactId: id })}
+        />
       )}
       {detail.kind === "receipt" && (
         <>

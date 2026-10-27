@@ -995,3 +995,58 @@
     animation: none;
   }
 }
+.group-member-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.group-member-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+}
+.group-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.group-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 8px;
+}
+.group-member-actions:empty {
+  display: none;
+}
+.group-action {
+  min-height: 36px;
+  border-radius: 8px;
+  padding: 6px 9px;
+  font-size: 11px;
+  background: var(--canvas);
+}
+.group-action:hover {
+  background: var(--accent-soft);
+}
+.group-confirmation {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--accent);
+  border-radius: 16px;
+  background: var(--canvas);
+}
+.group-left-banner {
+  padding: 20px;
+  text-align: center;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--muted);
+}

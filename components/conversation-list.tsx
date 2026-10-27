@@ -156,7 +156,11 @@ export function ConversationList() {
                         </span>
                         <span className="mt-1.5 flex items-center justify-between gap-2">
                           <span className="truncate text-xs text-[var(--muted)]">
-                            {last?.outgoing && "Você: "}
+                            {chat.kind === "group" && !chat.group?.selfMember
+                              ? "Você saiu do grupo · "
+                              : last?.outgoing
+                                ? "Você: "
+                                : ""}
                             {last?.text ||
                               (last?.attachments.length
                                 ? "📎 Anexo local"

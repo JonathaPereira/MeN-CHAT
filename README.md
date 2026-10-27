@@ -55,6 +55,22 @@ A configuração de desenvolvimento autoriza automaticamente os IPv4 da máquina
 
 Conversas, grupos, mensagens e anexos existem somente na memória desta aba e desaparecem ao recarregar. Preferências, nome, status, foto e código do perfil persistem no armazenamento local desse navegador. Para apagar esse perfil de teste, limpe os dados do site nas configurações do navegador. Tema, perfil e preferências são compartilhados entre abas deste navegador; não há sincronização de mensagens.
 
+## Administração de grupos — demonstração
+
+Clique no nome do grupo para ver os participantes e os papéis de criador, dono, administrador e membro.
+
+- Quem cria um grupo torna-se seu dono e administrador. A identidade do criador original nunca muda, mesmo ao transferir a propriedade.
+- Administradores adicionam perfis existentes pelo código de usuário e promovem membros a administrador. Isso não cria contas e não envia convites de cadastro: só adiciona o contato fictício nesta aba.
+- O dono pode revogar administradores e remover outros administradores. Administradores comuns removem apenas membros comuns.
+- O criador original nunca pode ser removido ou rebaixado por outra pessoa, inclusive pelo novo dono após transferência. O dono atual também é protegido contra remoção pelos demais administradores.
+- Sair é uma ação voluntária com confirmação. O dono precisa transferir a propriedade antes de sair se houver outros participantes; se estiver sozinho, pode sair e encerrar o grupo.
+- Após sair, o histórico local fica somente para consulta. O campo de envio e o gerenciamento são removidos, e respostas automáticas pendentes daquele grupo são canceladas.
+- O grupo aceita até 20 participantes, contando você. Pessoas duplicadas e códigos indisponíveis são rejeitados.
+
+Para testar: em **Família reunida**, Ana é a criadora/dona e você é administrador; adicione Pedro pelo código **P3D4R5**. Em **Os de sempre**, você é membro comum e só pode sair. Crie um grupo novo para experimentar os controles do dono e a transferência de propriedade.
+
+Todas as ações são locais e desaparecem ao recarregar. Antes de usuários reais, essas mesmas regras precisam ser impostas por autorização, transações e RLS no servidor. Veja [as invariantes dos grupos](docs/convites-e-privacidade.md#administração-de-grupos).
+
 ## Perfis, leituras e digitação — demonstração
 
 Clique no nome do contato no cabeçalho para abrir o perfil e ver seu código, quando permitido. No nome do grupo, abra os participantes e visite seus perfis. O botão “Enviar mensagem” abre a conversa privada correspondente.

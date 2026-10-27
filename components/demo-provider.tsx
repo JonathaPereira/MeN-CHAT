@@ -15,6 +15,7 @@ import { contacts, initialChats, initialProfile } from "@/lib/data/chat";
 import { automatedReply } from "@/lib/auto-reply";
 import { generateUserCode } from "@/lib/user-code";
 import { chatMembers } from "@/lib/chat-privacy";
+import { applyGroupAction, SELF, type GroupAction } from "@/lib/group-rules";
 import { createDemoId } from "@/lib/demo-id";
 import type { Attachment, Chat, Contact, Profile, Message } from "@/types/chat";
 
@@ -66,6 +67,7 @@ type DemoContextValue = {
   registerProfile: (name: string) => boolean;
   openPrivate: (contact: Contact) => string;
   createGroup: (name: string, memberIds: string[]) => string;
+  manageGroup: (chatId: string, action: GroupAction) => string | null;
   sendMessage: (
     chatId: string,
     text: string,
@@ -165,6 +167,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         id,
         name: name.trim(),
         kind: "group",
+        group: {
+          creatorId: SELF,
+          ownerId: SELF,
+          adminIds: [SELF],
+          selfMember: true,
+        },
         memberIds: [...new Set(memberIds)],
         color: "sage",
         unread: 0,
@@ -173,6 +181,35 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     ]);
     return id;
   }
+  function manageGroup(chatId: string, action: GroupAction): string | null {
+    const target = chats.find((chat) => chat.id === chatId);
+    if (!target) return "Grupo não encontrado.";
+    if (
+      action.type === "add" &&
+      !contacts.some((contact) => contact.id === action.targetId)
+    )
+      return "Perfil de demonstração não encontrado.";
+    const result = applyGroupAction(target, SELF, action);
+    if (!result.ok) return result.error;
+    setChats((current) =>
+      current.map((chat) => {
+        if (chat.id !== chatId) return chat;
+        const next = applyGroupAction(chat, SELF, action);
+        return next.ok ? next.chat : chat;
+      }),
+    );
+    if (action.type === "leave" || action.type === "remove") {
+      const timer = timers.current.get(chatId);
+      if (timer) clearTimeout(timer);
+      timers.current.delete(chatId);
+      setTyping((current) => {
+        const next = { ...current };
+        delete next[chatId];
+        return next;
+      });
+    }
+    return null;
+  }
   function sendMessage(
     chatId: string,
     text: string,
@@ -180,7 +217,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   ) {
     if (!text.trim() && !attachments.length) return;
     const target = chats.find((chat) => chat.id === chatId);
-    if (!target) return;
+    if (!target || (target.kind === "group" && !target.group?.selfMember))
+      return;
     const members = chatMembers(target, contacts);
     const message: Message = {
       id: createDemoId(),
@@ -293,6 +331,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           }),
         openPrivate,
         createGroup,
+        manageGroup,
         sendMessage,
         markRead,
         fileUrl: (file) => {
