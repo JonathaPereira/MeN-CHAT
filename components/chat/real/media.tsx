@@ -1,13 +1,16 @@
 "use client";
+import { memo } from "react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
-import { Download, FileText, RefreshCw } from "lucide-react";
+import { Download, FileText, Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Upload } from "@/lib/chat/types";
 import { formatFileSize } from "@/lib/attachments";
 import { shouldLoadMedia } from "@/lib/preferences";
 import { usePreferences } from "@/components/preferences-provider";
-export function RealMedia({
+import { Modal } from "@/components/modal";
+import { AudioPlayer } from "./audio-player";
+export const RealMedia = memo(function RealMedia({
   client,
   id,
 }: {
@@ -15,7 +18,14 @@ export function RealMedia({
   id: string;
 }) {
   const { settings } = usePreferences();
-  const player = useRef<HTMLMediaElement | null>(null);
+  const [item, setItem] = useState<Upload | null>(null),
+    [url, setUrl] = useState(""),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false),
+    [expanded, setExpanded] = useState(false),
+    [zoom, setZoom] = useState(1);
+  const player = useRef<HTMLMediaElement | null>(null),
+    recovered = useRef(false);
   const bindPlayer = useCallback((node: HTMLMediaElement | null) => {
     const previous = player.current;
     if (!node && previous)
@@ -28,29 +38,29 @@ export function RealMedia({
       });
     player.current = node;
   }, []);
-  const [item, setItem] = useState<Upload | null>(null),
-    [url, setUrl] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+  const autoImages = shouldLoadMedia(settings, "image"),
+    autoAudio = shouldLoadMedia(settings, "audio"),
+    autoVideo = shouldLoadMedia(settings, "video");
   useEffect(() => {
     let alive = true;
     async function load() {
       try {
-        const { data, error } = await client
+        const result = await client
           .from("menchat_uploads")
           .select("id,path,kind,name,mime,bytes")
           .eq("id", id)
           .maybeSingle<Upload>();
         if (!alive) return;
-        if (error || !data) {
+        if (result.error || !result.data) {
           setError("Anexo indisponível.");
           return;
         }
+        const data = result.data;
         setItem(data);
         if (
-          data.kind !== "document" &&
-          data.kind !== "avatar" &&
-          shouldLoadMedia(settings, data.kind)
+          (data.kind === "image" && autoImages) ||
+          (data.kind === "audio" && autoAudio) ||
+          (data.kind === "video" && autoVideo)
         ) {
           const result = await client.storage
             .from("menchat-media")
@@ -65,9 +75,9 @@ export function RealMedia({
     return () => {
       alive = false;
     };
-  }, [client, id, settings]);
-  async function load(download = false) {
-    if (!item) return;
+  }, [client, id, autoImages, autoAudio, autoVideo]);
+  async function source(download = false): Promise<string | null> {
+    if (!item) return null;
     setBusy(true);
     setError("");
     try {
@@ -88,101 +98,157 @@ export function RealMedia({
         link.click();
         link.remove();
       } else setUrl(data.signedUrl);
+      return data.signedUrl;
     } catch {
-      setError(
-        "Arquivo indisponível. Verifique a conexão e seu acesso à conversa.",
-      );
+      setError("Arquivo indisponível. Verifique a conexão e seu acesso.");
+      return null;
     } finally {
       setBusy(false);
     }
   }
+  async function recover() {
+    if (recovered.current) {
+      setError(
+        "Não foi possível exibir a mídia. Você pode tentar abrir novamente ou baixar.",
+      );
+      return;
+    }
+    recovered.current = true;
+    await source();
+  }
+  const label =
+    item?.kind === "audio"
+      ? "áudio"
+      : item?.kind === "image"
+        ? "imagem"
+        : item?.kind === "video"
+          ? "vídeo"
+          : item?.name || "arquivo";
   return (
-    <div className="real-media">
+    <div
+      className={`real-media clean-media ${item?.kind === "audio" ? "clean-audio" : ""}`}
+    >
       {item && (
         <>
-          <div className="real-media-player">
+          <div className="clean-media-content">
             {url && item.kind === "image" ? (
-              <Image
-                unoptimized
-                width={480}
-                height={360}
-                src={url}
-                alt={item.name}
-                onError={() =>
-                  setError("A prévia expirou. Toque em recarregar.")
-                }
-                className="max-h-72 w-full rounded-xl object-contain"
-              />
-            ) : url && item.kind === "audio" ? (
-              <audio
-                ref={bindPlayer}
-                controls
-                preload="none"
-                src={url}
-                aria-label={`Ouvir ${item.name}`}
-                onError={() => setError("Recarregue a prévia para ouvir.")}
-                onLoadedMetadata={(e) => {
-                  e.currentTarget.playbackRate = settings.playbackRate;
+              <button
+                type="button"
+                className="media-image-button"
+                aria-label="Ampliar foto"
+                onClick={() => {
+                  setZoom(1);
+                  setExpanded(true);
                 }}
+              >
+                <Image
+                  unoptimized
+                  src={url}
+                  width={480}
+                  height={360}
+                  alt="Foto enviada"
+                  className="max-h-72 w-full rounded-xl object-contain"
+                  onError={() => void recover()}
+                />
+                <Maximize2 className="photo-maximize" size={17} />
+              </button>
+            ) : url && item.kind === "audio" ? (
+              <AudioPlayer
+                url={url}
+                rate={settings.playbackRate}
+                onExpired={() => source()}
               />
             ) : url && item.kind === "video" ? (
               <video
                 ref={bindPlayer}
                 controls
+                controlsList="nodownload noplaybackrate"
                 playsInline
                 preload="metadata"
                 src={url}
-                aria-label={`Assistir ${item.name}`}
-                onError={() => setError("Recarregue a prévia para assistir.")}
+                aria-label="Vídeo enviado"
+                onError={() => void recover()}
               />
-            ) : item.kind !== "document" ? (
+            ) : item.kind === "document" ? (
+              <div className="document-summary">
+                <FileText size={26} />
+                <span className="min-w-0">
+                  <p className="truncate text-xs">{item.name}</p>
+                  <p className="text-[10px] text-[var(--muted)]">
+                    {formatFileSize(item.bytes)}
+                  </p>
+                </span>
+              </div>
+            ) : (
               <button
                 type="button"
                 className="secondary-button"
                 disabled={busy}
-                onClick={() => void load()}
+                onClick={() => {
+                  recovered.current = false;
+                  void source();
+                }}
               >
-                Carregar prévia
+                Carregar {label}
               </button>
-            ) : (
-              <FileText size={28} />
             )}
           </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs" title={item.name}>
-                {item.name}
-              </p>
-              <p className="text-[10px] text-[var(--muted)]">
-                {formatFileSize(item.bytes)}
-              </p>
-            </div>
-            <button
-              className="icon-button shrink-0"
-              type="button"
-              aria-label={`Baixar ${item.name}`}
-              disabled={busy}
-              onClick={() => void load(true)}
-            >
-              <Download size={17} />
-            </button>
-            <button
-              className="icon-button shrink-0"
-              type="button"
-              aria-label="Recarregar prévia"
-              disabled={busy}
-              onClick={() => void load()}
-            >
-              <RefreshCw size={15} />
-            </button>
-          </div>
+          <button
+            className="icon-button media-download"
+            type="button"
+            aria-label={`Baixar ${label}`}
+            disabled={busy}
+            onClick={() => void source(true)}
+          >
+            <Download size={17} />
+          </button>
         </>
       )}
       {error && (
-        <p role="status" className="text-xs">
+        <p role="status" className="media-error text-xs">
           {error}
         </p>
       )}
+      {expanded && url && (
+        <Modal title="Foto" onClose={() => setExpanded(false)}>
+          <div className="photo-view-tools">
+            <button
+              className="icon-button"
+              aria-label="Diminuir foto"
+              onClick={() => setZoom((v) => Math.max(1, v - 0.5))}
+            >
+              <ZoomOut size={20} />
+            </button>
+            <button
+              className="icon-button"
+              aria-label="Aumentar foto"
+              onClick={() => setZoom((v) => Math.min(4, v + 0.5))}
+            >
+              <ZoomIn size={20} />
+            </button>
+            <button
+              className="icon-button"
+              aria-label="Baixar imagem ampliada"
+              onClick={() => void source(true)}
+            >
+              <Download size={20} />
+            </button>
+            <span className="text-xs">{Math.round(zoom * 100)}%</span>
+          </div>
+          <div className="photo-view-scroll">
+            <Image
+              unoptimized
+              src={url}
+              width={1200}
+              height={900}
+              alt="Foto ampliada"
+              style={{ width: `${zoom * 100}%`, maxWidth: "none" }}
+              className="h-auto object-contain"
+              onError={() => void recover()}
+            />
+          </div>
+        </Modal>
+      )}
     </div>
   );
-}
+});

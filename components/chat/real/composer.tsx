@@ -1,7 +1,20 @@
 "use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
-import { Paperclip, Send, Smile, X, FileText } from "lucide-react";
+import {
+  Paperclip,
+  Send,
+  Smile,
+  X,
+  FileText,
+  Camera,
+  AtSign,
+  Reply,
+} from "lucide-react";
+import { CameraDialog } from "./camera";
+import type { SendContext } from "@/lib/chat/composition";
+import type { ChatMessage, Participant } from "@/lib/chat/types";
+import { quotedText, mentionStart } from "@/lib/chat/composition";
 import { VoiceRecorder } from "@/components/chat/voice-recorder";
 import { Modal } from "@/components/modal";
 import {
@@ -17,13 +30,27 @@ export function RealComposer({
   onTyping,
   onError,
   onDiscard,
+  onOverlayChange,
+  reply,
+  onCancelReply,
+  people,
+  isGroup,
 }: {
   disabled: boolean;
   busy: boolean;
-  onSend: (text: string, file: File | null) => Promise<boolean>;
+  onSend: (
+    text: string,
+    file: File | null,
+    context: SendContext,
+  ) => Promise<boolean>;
   onTyping: (value: boolean) => void;
   onError: (error: string) => void;
   onDiscard: () => void;
+  onOverlayChange: (value: boolean) => void;
+  reply: ChatMessage | null;
+  onCancelReply: () => void;
+  people: Participant[];
+  isGroup: boolean;
 }) {
   const { settings } = usePreferences();
   const [text, setText] = useState(""),
@@ -31,6 +58,13 @@ export function RealComposer({
     [preview, setPreview] = useState(""),
     [recording, setRecording] = useState(false),
     [emojis, setEmojis] = useState(false);
+  const [camera, setCamera] = useState(false),
+    [mentionMenu, setMentionMenu] = useState(false),
+    [mentions, setMentions] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    onOverlayChange(camera || emojis);
+    return () => onOverlayChange(false);
+  }, [camera, emojis, onOverlayChange]);
   const input = useRef<HTMLInputElement>(null),
     field = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -49,8 +83,18 @@ export function RealComposer({
     if (!text.trim() && !attachment) return;
     if (voice) setFile(voice);
     onTyping(false);
-    if (await onSend(text.trim(), attachment)) {
+    if (
+      await onSend(text.trim(), attachment, {
+        replyId: reply?.id || null,
+        mentionIds: mentions
+          .filter((p) => text.includes(`@${p.name}`))
+          .map((p) => p.id)
+          .sort(),
+      })
+    ) {
       setText("");
+      setMentions([]);
+      onCancelReply();
       setFile(null);
       setPreview("");
       field.current?.focus();
@@ -69,6 +113,70 @@ export function RealComposer({
   }
   return (
     <div className="real-composer-wrap">
+      {reply && (
+        <div className="reply-draft">
+          <Reply size={16} />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold">
+              Respondendo a{" "}
+              {people.find((p) => p.id === reply.sender_id)?.name ||
+                "uma mensagem"}
+            </p>
+            <p className="truncate text-xs">
+              {reply.deleted_at
+                ? "Mensagem apagada."
+                : quotedText(reply.body, !!reply.attachment_id)}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Cancelar resposta"
+            onClick={onCancelReply}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      {mentionMenu && isGroup && (
+        <div className="mention-chooser" aria-label="Mencionar participante">
+          {people.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="mention-option"
+              onClick={() => {
+                const at = field.current?.selectionStart ?? text.length;
+                const before = text.slice(0, at);
+                const start = mentionStart(
+                  text,
+                  at,
+                  mentions.map((m) => m.name),
+                );
+                const insert = `@${p.name} `;
+                setText(
+                  (start >= 0
+                    ? before.slice(0, start)
+                    : before + (before.endsWith(" ") || !before ? "" : " ")) +
+                    insert +
+                    text.slice(at),
+                );
+                setMentions((v) => [
+                  ...v.filter((m) => m.id !== p.id),
+                  { id: p.id, name: p.name },
+                ]);
+                setMentionMenu(false);
+                onTyping(true);
+                field.current?.focus();
+              }}
+            >
+              <AtSign size={15} />
+              {p.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {file && (
         <div className="real-file-preview">
           {file.type.startsWith("image/") && preview ? (
@@ -134,6 +242,26 @@ export function RealComposer({
             </button>
             <button
               type="button"
+              className="icon-button"
+              aria-label="Câmera"
+              disabled={disabled || busy}
+              onClick={() => setCamera(true)}
+            >
+              <Camera size={21} />
+            </button>
+            {isGroup && (
+              <button
+                type="button"
+                className="icon-button mention-button"
+                aria-label="Mencionar participante"
+                disabled={disabled || busy}
+                onClick={() => setMentionMenu((v) => !v)}
+              >
+                <AtSign size={19} />
+              </button>
+            )}
+            <button
+              type="button"
               className="icon-button real-emoji-button"
               aria-label="Escolher emoji"
               disabled={disabled || busy}
@@ -158,8 +286,20 @@ export function RealComposer({
               onChange={(e) => {
                 setText(e.target.value);
                 onTyping(Boolean(e.target.value.trim()));
+                setMentionMenu(
+                  isGroup &&
+                    mentionStart(
+                      e.target.value,
+                      e.target.selectionStart,
+                      mentions.map((m) => m.name),
+                    ) >= 0,
+                );
               }}
               onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setMentionMenu(false);
+                  return;
+                }
                 if (
                   e.key === "Enter" &&
                   !e.shiftKey &&
@@ -196,6 +336,9 @@ export function RealComposer({
           ? "Enviando… mantenha esta conversa aberta."
           : "Fotos 5 MB · vídeos 25 MB · áudios e documentos 10 MB"}
       </p>
+      {camera && (
+        <CameraDialog onClose={() => setCamera(false)} onCapture={pick} />
+      )}
       {emojis && (
         <Modal title="Emojis" onClose={() => setEmojis(false)}>
           <div className="grid grid-cols-6 gap-2">

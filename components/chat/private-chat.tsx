@@ -17,9 +17,20 @@ import {
   Settings,
   Users,
   UserRound,
+  Star,
+  Reply,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { createDemoId } from "@/lib/demo-id";
+import { RealSettings } from "./real/settings";
+import { RealProfileForm } from "./real/profile-form";
+import type { RealProfile } from "@/lib/chat/types";
+import {
+  quotedText,
+  sameComposition,
+  type SendContext,
+} from "@/lib/chat/composition";
+import { chatError } from "@/lib/chat/errors";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Modal } from "@/components/modal";
@@ -41,6 +52,7 @@ type Pending = {
   thread: string;
   file: File | null;
   upload?: Upload;
+  context: SendContext;
 };
 export function PrivateChat({
   userId,
@@ -69,6 +81,17 @@ export function PrivateChat({
     [codeInput, setCodeInput] = useState(""),
     [dialog, setDialog] = useState<"new" | "group" | "details" | null>(null),
     [receipt, setReceipt] = useState<ChatMessage | null>(null);
+  const [composerOverlay, setComposerOverlay] = useState(false);
+  const [reply, setReply] = useState<ChatMessage | null>(null),
+    [starred, setStarred] = useState<string[]>([]),
+    [starList, setStarList] = useState<ChatMessage[] | null>(null),
+    [quotes, setQuotes] = useState<Map<string, ChatMessage | null>>(new Map()),
+    [panel, setPanel] = useState<"settings" | "profile" | null>(null),
+    [ownProfile, setOwnProfile] = useState<RealProfile | null>(null);
+  const quoteCache = useRef(new Map<string, ChatMessage | null>()),
+    viewingChat = useRef(true),
+    lastTouch = useRef({ received: -1, read: -1, typing: false }),
+    lastSeen = useRef(-1);
   const pending = useRef<Pending | null>(null),
     loaded = useRef<ChatMessage[]>([]),
     active = useRef<string | null>(null),
@@ -77,6 +100,15 @@ export function PrivateChat({
     typing = useRef({ value: false, at: 0, sent: 0 });
   const seenThreads = useRef<Map<string, string> | null>(null);
   const [deleting, setDeleting] = useState<ChatMessage | null>(null);
+  useEffect(() => {
+    viewingChat.current =
+      !panel &&
+      !dialog &&
+      !deleting &&
+      !receipt &&
+      !starList &&
+      !composerOverlay;
+  }, [panel, dialog, deleting, receipt, starList, composerOverlay]);
   const [welcome, setWelcome] = useState<{ name: string; code: string } | null>(
     null,
   );
@@ -102,6 +134,15 @@ export function PrivateChat({
       pending.current = null;
       sticky.current = true;
       typing.current = { value: false, at: 0, sent: 0 };
+      setDialog(null);
+      setDeleting(null);
+      setStarList(null);
+      lastSeen.current = -1;
+      setReply(null);
+      setStarred([]);
+      quoteCache.current.clear();
+      setQuotes(new Map());
+      lastTouch.current = { received: -1, read: -1, typing: false };
       setMessages([]);
       setPeople([]);
       setOlder(false);
@@ -155,15 +196,18 @@ export function PrivateChat({
   }, [client, notifyIncoming, selectThread, userId]);
   useEffect(() => {
     let alive = true,
-      running = false;
+      running = false,
+      lastRun = 0;
     async function run() {
       if (!alive || running) return;
+      if (document.hidden && Date.now() - lastRun < 30000) return;
+      lastRun = Date.now();
       running = true;
       await refreshThreads();
       running = false;
     }
     void run();
-    const timer = setInterval(() => void run(), 3000);
+    const timer = setInterval(() => void run(), 5000);
     window.addEventListener("focus", run);
     return () => {
       alive = false;
@@ -181,8 +225,13 @@ export function PrivateChat({
     if (!selected) return;
     let alive = true,
       running = false;
+    void client
+      .rpc("menchat_starred", { p_thread: selected })
+      .then(({ data, error }) => {
+        if (alive && !error) setStarred(data || []);
+      });
     async function refresh() {
-      if (running) return;
+      if (running || document.hidden) return;
       running = true;
       try {
         const last = loaded.current.at(-1)?.seq;
@@ -218,7 +267,14 @@ export function PrivateChat({
           cursor = rows.at(-1)!.seq;
         }
         // Só identificadores e tombstones: não baixar novamente todos os textos/mídias.
-        const ids = loaded.current.map((m) => m.id);
+        const replyIds = [
+          ...new Set(
+            loaded.current.flatMap((m) => (m.reply_to ? [m.reply_to] : [])),
+          ),
+        ];
+        const ids = [
+          ...new Set([...loaded.current.map((m) => m.id), ...replyIds]),
+        ];
         for (let start = 0; start < ids.length; start += 200) {
           const slice = ids.slice(start, start + 200);
           const current = await client
@@ -232,6 +288,9 @@ export function PrivateChat({
               deleted_at: string | null;
             }[];
             const visible = new Map(rows.map((row) => [row.id, row]));
+            for (const id of replyIds.filter((id) => slice.includes(id)))
+              if (!visible.has(id) || visible.get(id)?.deleted_at)
+                quoteCache.current.set(id, null);
             loaded.current = loaded.current
               .filter((m) => !slice.includes(m.id) || visible.has(m.id))
               .map((m) =>
@@ -247,25 +306,70 @@ export function PrivateChat({
             setMessages(loaded.current);
           }
         }
+        const missing = replyIds.filter((id) => !quoteCache.current.has(id));
+        for (let offset = 0; offset < missing.length; offset += 200) {
+          const part = missing.slice(offset, offset + 200);
+          const result = await client
+            .from("menchat_messages")
+            .select("*")
+            .eq("thread_id", selected)
+            .in("id", part);
+          if (!alive) return;
+          if (!result.error) {
+            for (const id of part) quoteCache.current.set(id, null);
+            for (const m of result.data as ChatMessage[])
+              if (!m.deleted_at) quoteCache.current.set(m.id, m);
+          }
+        }
+        setQuotes(new Map(quoteCache.current));
         const latest = loaded.current.at(-1)?.seq || 0;
-        if (!document.hidden && document.hasFocus() && sticky.current)
-          await client.rpc("menchat_seen", {
-            p_thread: selected,
-            p_seq: latest,
-          });
-        await client.rpc("menchat_touch", {
-          p_thread: selected,
-          p_received: latest,
-          p_read:
-            !document.hidden && document.hasFocus() && sticky.current
-              ? latest
-              : 0,
-          p_typing:
-            typing.current.value && Date.now() - typing.current.at < 4000,
-        });
-        const roster = await client.rpc("menchat_participants", {
-          p_thread: selected,
-        });
+        const read =
+          !document.hidden &&
+          document.hasFocus() &&
+          sticky.current &&
+          viewingChat.current
+            ? latest
+            : 0;
+        const isTyping =
+          typing.current.value && Date.now() - typing.current.at < 4000;
+        const touch = lastTouch.current;
+        const work: PromiseLike<unknown>[] = [];
+        if (read > lastSeen.current)
+          work.push(
+            client
+              .rpc("menchat_seen", { p_thread: selected, p_seq: read })
+              .then((result) => {
+                if (!result.error && active.current === selected)
+                  lastSeen.current = read;
+              }),
+          );
+        if (
+          latest !== touch.received ||
+          read > touch.read ||
+          isTyping ||
+          touch.typing !== isTyping
+        )
+          work.push(
+            client
+              .rpc("menchat_touch", {
+                p_thread: selected,
+                p_received: latest,
+                p_read: read,
+                p_typing: isTyping,
+              })
+              .then((result) => {
+                if (!result.error && active.current === selected)
+                  lastTouch.current = {
+                    received: latest,
+                    read: Math.max(read, touch.read),
+                    typing: isTyping,
+                  };
+              }),
+          );
+        const [roster] = await Promise.all([
+          client.rpc("menchat_participants", { p_thread: selected }),
+          ...work,
+        ]);
         if (alive && !roster.error)
           setPeople((roster.data || []) as Participant[]);
       } catch {
@@ -326,7 +430,7 @@ export function PrivateChat({
   useEffect(() => {
     if (scroller.current && sticky.current)
       scroller.current.scrollTop = scroller.current.scrollHeight;
-  }, [messages]);
+  }, [messages, typists.length]);
   function onTyping(value: boolean) {
     typing.current.value = value;
     typing.current.at = Date.now();
@@ -372,14 +476,21 @@ export function PrivateChat({
       setBusy(false);
     }
   }
-  async function send(text: string, file: File | null): Promise<boolean> {
+  async function send(
+    text: string,
+    file: File | null,
+    context: SendContext,
+  ): Promise<boolean> {
     if (busy || !selected || !thread?.can_send) return false;
     const target = selected;
     const old = pending.current;
     const item: Pending =
-      old?.text === text && old.thread === target && old.file === file
+      old?.text === text &&
+      old.thread === target &&
+      old.file === file &&
+      sameComposition(old.context, context)
         ? old
-        : { id: createDemoId(), text, thread: target, file };
+        : { id: createDemoId(), text, thread: target, file, context };
     if (old?.upload && old !== item)
       void discardUpload(client, old.upload).catch(() => {});
     pending.current = item;
@@ -398,38 +509,43 @@ export function PrivateChat({
           existing.data?.sender_id === userId &&
           existing.data.thread_id === target &&
           existing.data.body === text &&
-          existing.data.attachment_id === item.upload.id
+          existing.data.attachment_id === item.upload.id &&
+          sameComposition(
+            {
+              replyId: existing.data.reply_to || null,
+              mentionIds: existing.data.mention_ids || [],
+            },
+            context,
+          )
         )
           sent = existing.data;
       }
       if (!sent && file) {
         item.upload ??= await reserveUpload(client, target, file);
         await uploadFile(client, item.upload, file);
-        const result = await client.rpc("menchat_send_upload", {
-          p_message: item.id,
+        const result = await client.rpc("menchat_send_composed", {
+          p_id: item.id,
+          p_thread: target,
+          p_reply: context.replyId,
+          p_mentions: context.mentionIds,
           p_upload: item.upload.id,
           p_body: text,
         });
-        if (!result.error) {
-          const result = await client
-            .from("menchat_messages")
-            .select("*")
-            .eq("id", item.id)
-            .maybeSingle<ChatMessage>();
-          sent = result.data;
-        }
+        if (!result.error) sent = result.data as ChatMessage;
       } else if (!sent) {
-        const result = await client
-          .from("menchat_messages")
-          .insert({
-            id: item.id,
-            thread_id: target,
-            sender_id: userId,
-            body: text,
-          })
-          .select("*")
-          .single<ChatMessage>();
-        sent = result.data;
+        const result = await client.rpc("menchat_send_composed", {
+          p_id: item.id,
+          p_thread: target,
+          p_body: text,
+          p_reply: context.replyId,
+          p_mentions: context.mentionIds,
+          p_upload: null,
+        });
+        if (!result.error) sent = result.data as ChatMessage;
+        else if (result.error.code !== "23505")
+          throw new Error(
+            chatError(result.error, "Envio não confirmado. Tente novamente."),
+          );
       }
       if (!sent) {
         const existing = await client
@@ -441,7 +557,14 @@ export function PrivateChat({
           existing.data?.sender_id === userId &&
           existing.data.thread_id === target &&
           existing.data.body === text &&
-          existing.data.attachment_id === (item.upload?.id || null)
+          existing.data.attachment_id === (item.upload?.id || null) &&
+          sameComposition(
+            {
+              replyId: existing.data.reply_to || null,
+              mentionIds: existing.data.mention_ids || [],
+            },
+            context,
+          )
         )
           sent = existing.data;
       }
@@ -510,6 +633,51 @@ export function PrivateChat({
       if (!result.error) setPeople(result.data as Participant[]);
     }
   }
+  async function openProfile() {
+    setPanel("profile");
+    setError("");
+    setOwnProfile(null);
+    const result = await client
+      .from("menchat_profiles")
+      .select(
+        "id,display_name,user_code,status_message,avatar_path,show_code,allow_code_lookup,read_receipts,show_typing",
+      )
+      .eq("id", userId)
+      .single<RealProfile>();
+    if (result.error) setError("Não foi possível carregar o perfil.");
+    else setOwnProfile(result.data);
+  }
+  async function markMessage(m: ChatMessage) {
+    const adding = !starred.includes(m.id);
+    const result = await client.rpc("menchat_star_message", {
+      p_id: m.id,
+      p_star: adding,
+    });
+    if (result.error) {
+      setError("Não foi possível marcar a mensagem.");
+      return false;
+    }
+    setStarred((v) => (adding ? [...v, m.id] : v.filter((id) => id !== m.id)));
+    setDeleting(null);
+    return true;
+  }
+  async function showStars() {
+    const ids = await client.rpc("menchat_starred", { p_thread: selected });
+    if (ids.error) {
+      setError("Não foi possível carregar as mensagens marcadas.");
+      return;
+    }
+    const result = ids.data?.length
+      ? await client
+          .from("menchat_messages")
+          .select("*")
+          .in("id", ids.data)
+          .order("seq", { ascending: false })
+      : { data: [], error: null };
+    if (result.error)
+      setError("Não foi possível carregar as mensagens marcadas.");
+    else setStarList(result.data as ChatMessage[]);
+  }
   const visible = threads.filter(
     (t) =>
       (filter === "all" || t.kind === filter) &&
@@ -528,6 +696,13 @@ export function PrivateChat({
           <div className="flex items-center gap-1">
             <Link
               href="/conta/configuracoes"
+              prefetch={false}
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                  e.preventDefault();
+                  setPanel("settings");
+                }
+              }}
               className="icon-button"
               aria-label="Configurações"
             >
@@ -535,6 +710,13 @@ export function PrivateChat({
             </Link>
             <Link
               href="/conta/perfil"
+              prefetch={false}
+              onClick={(e) => {
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                  e.preventDefault();
+                  void openProfile();
+                }
+              }}
               className="icon-button"
               aria-label="Meu perfil"
             >
@@ -682,7 +864,17 @@ export function PrivateChat({
           )}
         </nav>
         <footer className="real-list-footer">
-          <Link href="/conta/perfil" className="min-w-0 flex-1">
+          <Link
+            href="/conta/perfil"
+            prefetch={false}
+            onClick={(e) => {
+              if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                e.preventDefault();
+                void openProfile();
+              }
+            }}
+            className="min-w-0 flex-1"
+          >
             <p className="truncate text-xs font-semibold">{name}</p>
             <span className="text-[10px] text-[var(--muted)]">
               Seu código: {code}
@@ -729,7 +921,7 @@ export function PrivateChat({
                   <h2 className="truncate text-sm font-semibold">
                     {thread.name}
                   </h2>
-                  <span className="real-typing" role="status">
+                  <span className="real-typing">
                     {typists.length ? (
                       <>
                         <span className="typing-dots">
@@ -758,8 +950,22 @@ export function PrivateChat({
                   </span>
                 </span>
               </button>
+              <button
+                className="icon-button"
+                aria-label="Mensagens marcadas"
+                onClick={() => void showStars()}
+              >
+                <Star size={19} />
+              </button>
               <Link
                 href="/conta/configuracoes"
+                prefetch={false}
+                onClick={(e) => {
+                  if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    e.preventDefault();
+                    setPanel("settings");
+                  }
+                }}
                 className="icon-button"
                 aria-label="Configurações da aplicação"
               >
@@ -826,13 +1032,43 @@ export function PrivateChat({
                           {author?.name || "Participante anterior"}
                         </p>
                       )}
+                      {!m.deleted_at && m.reply_to && (
+                        <blockquote className="message-quote">
+                          <Reply size={13} />
+                          <span>
+                            {quotes.get(m.reply_to)
+                              ? quotedText(
+                                  quotes.get(m.reply_to)!.body,
+                                  !!quotes.get(m.reply_to)!.attachment_id,
+                                )
+                              : "Mensagem indisponível"}
+                          </span>
+                        </blockquote>
+                      )}
                       {!m.deleted_at && m.attachment_id && (
                         <RealMedia client={client} id={m.attachment_id} />
                       )}
                       <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">
                         {m.body}
                       </p>
+                      {!m.deleted_at && !!m.mention_ids?.length && (
+                        <p className="message-mentions">
+                          {m.mention_ids.map((id) => (
+                            <span
+                              key={id}
+                              className={id === userId ? "mention-self" : ""}
+                            >
+                              @
+                              {people.find((p) => p.id === id)?.name ||
+                                "Participante"}
+                            </span>
+                          ))}
+                        </p>
+                      )}
                       <div className="real-message-meta">
+                        {starred.includes(m.id) && !m.deleted_at && (
+                          <Star size={12} aria-label="Mensagem marcada" />
+                        )}
                         <button
                           aria-label="Opções da mensagem"
                           onClick={() => setDeleting(m)}
@@ -870,11 +1106,41 @@ export function PrivateChat({
                   </div>
                 );
               })}
+              {!!typists.length && (
+                <div
+                  className="chat-typing-bubble"
+                  role="status"
+                  aria-label="Digitação na conversa"
+                >
+                  {typists.slice(0, 3).map((p) => (
+                    <RealAvatar
+                      key={p.id}
+                      client={client}
+                      name={p.name}
+                      path={p.avatar_path}
+                    />
+                  ))}
+                  <span>
+                    {typists.map((p) => p.name.split(" ")[0]).join(", ")}{" "}
+                    {typists.length > 1 ? "estão digitando" : "está digitando"}…
+                  </span>
+                  <span className="typing-dots">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                </div>
+              )}
             </div>
             <RealComposer
               key={selected}
               disabled={!thread.can_send}
               busy={busy}
+              onOverlayChange={setComposerOverlay}
+              reply={reply}
+              onCancelReply={() => setReply(null)}
+              people={people}
+              isGroup={thread.kind === "group"}
               onSend={send}
               onTyping={onTyping}
               onDiscard={() => {
@@ -975,7 +1241,38 @@ export function PrivateChat({
           </Modal>
         ))}
       {deleting && (
-        <Modal title="Apagar mensagem" onClose={() => setDeleting(null)}>
+        <Modal title="Opções da mensagem" onClose={() => setDeleting(null)}>
+          {error && (
+            <p role="alert" className="form-error mb-3">
+              {error}
+            </p>
+          )}
+          {!deleting.deleted_at && (
+            <>
+              <button
+                className="secondary-button mb-3 w-full"
+                onClick={() => {
+                  setReply(deleting);
+                  setDeleting(null);
+                  requestAnimationFrame(() =>
+                    document.getElementById("real-message")?.focus(),
+                  );
+                }}
+              >
+                <Reply size={17} />
+                Responder
+              </button>
+              <button
+                className="secondary-button mb-3 w-full"
+                onClick={() => void markMessage(deleting)}
+              >
+                <Star size={17} />
+                {starred.includes(deleting.id)
+                  ? "Desmarcar mensagem"
+                  : "Marcar mensagem"}
+              </button>
+            </>
+          )}
           <p className="mb-4 text-sm">
             Apagar para você oculta esta mensagem da sua conta. Apagar para
             todos remove o conteúdo da conversa; cópias já baixadas permanecem
@@ -1028,6 +1325,70 @@ export function PrivateChat({
               {everyone ? "Apagar para todos" : "Apagar para mim"}
             </button>
           ))}
+        </Modal>
+      )}
+      {panel && (
+        <Modal
+          title={panel === "settings" ? "Configurações" : "Meu perfil"}
+          onClose={() => setPanel(null)}
+        >
+          {panel === "settings" ? (
+            <RealSettings
+              onClose={() => setPanel(null)}
+              onProfile={() => void openProfile()}
+            />
+          ) : ownProfile ? (
+            <RealProfileForm profile={ownProfile} />
+          ) : error ? (
+            <p role="alert" className="form-error">
+              {error}
+              <button
+                className="secondary-button mt-3"
+                onClick={() => void openProfile()}
+              >
+                Tentar novamente
+              </button>
+            </p>
+          ) : (
+            <p role="status">Carregando perfil…</p>
+          )}
+        </Modal>
+      )}
+      {starList && (
+        <Modal title="Mensagens marcadas" onClose={() => setStarList(null)}>
+          {!starList.length ? (
+            <p>Nenhuma mensagem marcada nesta conversa.</p>
+          ) : (
+            <ul className="space-y-3">
+              {starList.map((m) => (
+                <li key={m.id} className="starred-item">
+                  <p className="text-sm">
+                    {quotedText(m.body, !!m.attachment_id)}
+                  </p>
+                  <button
+                    className="secondary-button mt-2"
+                    onClick={() => {
+                      setReply(m);
+                      setStarList(null);
+                    }}
+                  >
+                    Responder
+                  </button>
+                  <button
+                    className="secondary-button ml-2 mt-2"
+                    onClick={async () => {
+                      if (await markMessage(m))
+                        setStarList(
+                          (v) => v?.filter((row) => row.id !== m.id) || [],
+                        );
+                    }}
+                  >
+                    Desmarcar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </Modal>
       )}
       {receipt && (

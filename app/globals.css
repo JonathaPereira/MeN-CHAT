@@ -1801,3 +1801,217 @@
   font: 12px system-ui;
   color: var(--ink);
 }
+/* Mídia e composição: controles essenciais, sem nomes técnicos nos balões. */
+.real-composer .real-emoji-button {
+  display: inline-flex;
+}
+.clean-media {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+.clean-media-content {
+  min-width: 0;
+  flex: 1;
+}
+.clean-media .media-download {
+  width: 32px;
+  min-width: 32px;
+  height: 36px;
+  flex-shrink: 0;
+}
+.clean-media:has(.media-image-button) {
+  display: block;
+}
+.clean-media:has(.media-image-button) > .media-download {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 1px 8px #0002;
+}
+.media-image-button {
+  display: block;
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.photo-maximize {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  color: white;
+  filter: drop-shadow(0 1px 2px #000);
+}
+.simple-audio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  position: relative;
+  flex-wrap: wrap;
+}
+.simple-audio > audio {
+  display: none;
+}
+.simple-audio input[type="range"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--accent);
+  height: 24px;
+}
+.simple-audio > .icon-button {
+  width: 36px;
+  min-width: 36px;
+}
+.audio-error,
+.media-error {
+  flex-basis: 100%;
+  padding: 6px;
+  font-size: 11px;
+}
+.document-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.photo-view-tools {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.photo-view-scroll {
+  max-height: 65dvh;
+  overflow: auto;
+  touch-action: pan-x pan-y pinch-zoom;
+  border-radius: 12px;
+  background: var(--canvas);
+}
+.app-dialog:has(.photo-view-scroll) {
+  width: min(96vw, 1000px);
+  max-width: 1000px;
+}
+.camera-preview {
+  display: block;
+  width: 100%;
+  max-height: 46dvh;
+  min-height: 120px;
+  border-radius: 16px;
+  background: #07130e;
+  object-fit: contain;
+}
+.reply-draft,
+.message-quote {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 9px 11px;
+  margin-bottom: 9px;
+}
+.message-quote {
+  font-size: 11px;
+  line-height: 1.5;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.mention-chooser {
+  max-height: 135px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+.mention-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+}
+.mention-option:hover {
+  background: var(--accent-soft);
+}
+.message-mentions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  font-size: 10px;
+  margin-top: 5px;
+  color: var(--accent);
+}
+.mention-self {
+  background: var(--accent-soft);
+  padding: 2px 5px;
+  border-radius: 6px;
+}
+.chat-typing-bubble {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 13px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  width: fit-content;
+  max-width: 95%;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.chat-typing-bubble .avatar {
+  width: 25px;
+  height: 25px;
+  border-radius: 9px;
+  font-size: 8px;
+}
+.chat-typing-bubble > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.starred-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+@media (max-width: 480px) {
+  .real-composer:not(.real-composer-recording) {
+    flex-wrap: wrap;
+  }
+  .real-composer .real-message-input {
+    order: -1;
+    flex: 1 0 100%;
+    width: 100%;
+    min-height: 44px;
+  }
+  .real-composer > .send-button {
+    margin-left: auto;
+  }
+  .real-composer {
+    row-gap: 5px;
+  }
+  .real-composer-note {
+    font-size: 8px;
+  }
+  .real-media {
+    width: 245px;
+  }
+  .chat-typing-bubble {
+    font-size: 11px;
+  }
+  .mention-chooser {
+    max-height: 110px;
+  }
+}

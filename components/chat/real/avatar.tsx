@@ -1,8 +1,9 @@
 "use client";
+import { memo } from "react";
 import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Avatar } from "@/components/avatar";
-export function RealAvatar({
+export const RealAvatar = memo(function RealAvatar({
   client,
   name,
   path,
@@ -39,4 +40,4 @@ export function RealAvatar({
       photo={photo && photo.path === path ? photo.url : undefined}
     />
   );
-}
+});

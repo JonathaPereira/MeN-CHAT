@@ -6,6 +6,8 @@ export function chatError(
   fallback = "Não foi possível concluir. Tente novamente.",
 ): string {
   const message = error?.message || "";
+  if (/respondida|Menção indisponível/.test(message))
+    return "A mensagem ou participante não está mais disponível. Escolha novamente na conversa.";
   if (/500 MB|aplicativo cheio/.test(message))
     return "O armazenamento do MenChat está cheio. Novos anexos estão temporariamente bloqueados. Avise o administrador.";
   if (/100 MB|Limite diário/.test(message))

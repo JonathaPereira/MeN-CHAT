@@ -4,7 +4,7 @@
 
 - Aplicativo privado para até 20 amigos e familiares, exclusivamente por convite do administrador.
 - Trabalhe em etapas pequenas e verificáveis. Implemente apenas a etapa solicitada e pare ao concluí-la.
-- Etapa atual: interface de demonstração com respostas locais e início da integração Supabase. Conexão Auth/HTTP validada pelo usuário; base de perfis/convites versionada para aplicação no SQL Editor. Confirme o resultado de verify.sql antes de assumir que a migração foi aplicada. Login real em /entrar, primeiro acesso por OTP em /primeiro-acesso e perfil protegido em /conta estão implementados; verificar validação no Supabase hospedado com o usuário. Texto privado em /conta/chat implementado com migração 20261104000300_private_chat; validar publicação Realtime e duas contas no projeto hospedado com o usuário. Convites pelo aplicativo implementados na migração 4 e em /conta/convites e /convite; validar Auth/AMR/SMTP hospedados após a configuração única. Migração 5 implementa grupos/mídia/perfil/indicadores reais; validar Storage/Auth hospedados com teste solo antes de convidar pessoas. PWA é posterior.
+- Etapa atual: app oficial protegido, com grupos/mídia/perfil (migração 5), PWA e exclusão/não lidas (6), respostas/menções/favoritos e refinamento da mídia/navegação (7). A navegação do protótipo foi aposentada. Orientações históricas abaixo sobre demonstrações descrevem etapas anteriores; prevalecem as seções atuais das migrações 5–7. Não assumir que uma migração nova foi aplicada no projeto hospedado sem confirmação; testes locais não comprovam Auth/SMTP/Storage hospedados nem câmera física.
 - Interface e textos em português do Brasil; marca atual MenChat. Login minimalista, somente marca/formulário/ações, com animação que respeita redução de movimento.
 
 ## Stack e organização
@@ -98,3 +98,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Exclusão para todos somente pelo autor; apagadas mantêm tombstone e deixam de autorizar mídia. Para mim é persistente por usuário. Cópias e URLs já emitidas não podem ser recolhidas; arquivos físicos aguardam limpeza administrativa.
 - Contador privado de vistas separado de read_receipts; contato do convidador somente ao membro autenticado, respeitando show_code/allow_code_lookup.
 - Guia atual: docs/app-oficial.md. Aplicar a migração 6 e validar em Android físico antes de afirmar instalação hospedada confirmada.
+
+## Refinamentos do chat — migração 7
+
+- Guia `docs/refinamentos-chat.md`. Preservar migrações publicadas 1–6. Envios compostos validam resposta visível da mesma conversa e menções por ID a membros ativos do grupo; manter idempotência incluindo contexto. Nunca armazenar cópia do texto respondido que sobreviva à exclusão/ocultação da fonte.
+- Marcações são favoritas privadas por conta; listar as últimas 200 visíveis e não apagadas. Autorizações ficam no banco, inclusive quando chamadas fora da interface.
+- Áudio com controles próprios e download; fotos ampliáveis, sem nome de arquivo no balão. Não reintroduzir reload manual. Manter descarte de streams/URLs e reprodução estável durante a sincronização.
+- Câmera pede permissão por ação, captura foto/vídeo para o rascunho e libera dispositivos ao fechar, concluir ou falhar, inclusive permissões que resolvem após o fechamento. HTTPS e navegador compatível; seletor de arquivos como alternativa. Vídeo capturado até 2 minutos/25 MB, foto até 5 MB.
+- Perfil/configurações podem abrir sobre o chat, preservando rascunhos; endereços diretos continuam protegidos por getUser e perfil próprio ativo. Evitar novas consultas de página ao abrir preferências, confirmações repetidas e downloads de mídia causados apenas pelo polling. Não marcar como lidas mensagens atrás de um menu aberto.
+- `test:real-ui` usa câmera/microfone sintéticos; não afirmar validação de dispositivos Android ou latência da produção a partir do mock. Digitação no histórico respeita preferências reais e expiração.

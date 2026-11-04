@@ -1,5 +1,6 @@
+import type { RealProfile } from "../chat/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
-export type AccountProfile = {
+export type AccountProfile = RealProfile & {
   id: string;
   display_name: string;
   user_code: string;
@@ -22,7 +23,9 @@ export async function loadAccount(client: SupabaseClient): Promise<Account> {
       return { kind: "pending", email: user.email || "" };
     const { data: profile, error: profileError } = await client
       .from("menchat_profiles")
-      .select("id,display_name,user_code,app_role,account_status")
+      .select(
+        "id,display_name,user_code,app_role,account_status,status_message,avatar_path,show_code,allow_code_lookup,read_receipts,show_typing",
+      )
       .eq("id", user.id)
       .eq("account_status", "active")
       .maybeSingle<AccountProfile>();

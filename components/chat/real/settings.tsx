@@ -5,7 +5,10 @@ import { ChevronRight } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { usePreferences } from "@/components/preferences-provider";
 import type { Preferences } from "@/lib/preferences";
-export function RealSettings() {
+export function RealSettings({
+  onClose,
+  onProfile,
+}: { onClose?: () => void; onProfile?: () => void } = {}) {
   const { settings, update, testNotification } = usePreferences();
   const [tab, setTab] = useState<string | null>(null),
     [notice, setNotice] = useState("");
@@ -49,7 +52,17 @@ export function RealSettings() {
               <ChevronRight size={17} />
             </button>
           ))}
-          <Link href="/conta/perfil" className="real-settings-row">
+          <Link
+            prefetch={onProfile ? false : undefined}
+            onClick={(e) => {
+              if (onProfile && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                e.preventDefault();
+                onProfile();
+              }
+            }}
+            href="/conta/perfil"
+            className="real-settings-row"
+          >
             Perfil e privacidade
             <ChevronRight size={17} />
           </Link>
@@ -205,7 +218,17 @@ export function RealSettings() {
           {notice}
         </p>
       )}
-      <Link href="/conta/chat" className="secondary-button w-full">
+      <Link
+        prefetch={onClose ? false : undefined}
+        onClick={(e) => {
+          if (onClose && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            e.preventDefault();
+            onClose();
+          }
+        }}
+        href="/conta/chat"
+        className="secondary-button w-full"
+      >
         Voltar às conversas
       </Link>
     </div>

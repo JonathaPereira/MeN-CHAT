@@ -20,6 +20,8 @@ export type ChatMessage = {
   created_at: string;
   attachment_id: string | null;
   deleted_at?: string | null;
+  reply_to?: string | null;
+  mention_ids?: string[];
 };
 export type Participant = {
   id: string;

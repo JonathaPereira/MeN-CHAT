@@ -7,6 +7,8 @@ Aplicativo privado de mensagens para até 20 amigos e familiares, com acesso exc
 - Login, convites vinculados ao e-mail, OTP independente e código pessoal automático.
 - Conversas privadas e grupos, administradores, proprietário e proteção do criador.
 - Fotos, vídeos, documentos e áudios privados, prévias e gravação com dois cliques.
+- Câmera para foto/vídeo, imagens ampliáveis e áudio com controles simplificados.
+- Respostas com contexto, mensagens marcadas por conta e menções a participantes do grupo.
 - Perfil com nome, status, foto e opções de privacidade.
 - Indicadores de digitação/leitura, contador privado de não lidas e exclusão para mim/todos.
 - Temas, preferências de mídia/voz/avisos, carregamento com a marca e instalação no Android.
@@ -26,7 +28,7 @@ Copie `.env.example` para `.env.local` e preencha URL/chave publicável do seu S
 
 ## Banco e publicação
 
-Migrações em `supabase/migrations/`, versões 1–6, aplicadas uma vez em ordem. Preserve arquivos já aplicados; mudanças posteriores usam novas migrações. Primeiro administrador é definido pelo proprietário, sem endpoint público de bootstrap.
+Migrações em `supabase/migrations/`, versões 1–7, aplicadas uma vez em ordem. Preserve arquivos já aplicados; mudanças posteriores usam novas migrações. Primeiro administrador é definido pelo proprietário, sem endpoint público de bootstrap.
 
 Guias:
 
@@ -34,6 +36,7 @@ Guias:
 - [Configuração única de convites](docs/convites-pelo-aplicativo.md).
 - [Grupos, Storage e perfil — migração 5](docs/chat-completo.md).
 - [App oficial e Android — migração 6](docs/app-oficial.md).
+- [Mídia, câmera, respostas e navegação — migração 7](docs/refinamentos-chat.md).
 
 Rotas principais: `/entrar`, `/conta/chat`, `/conta/perfil`, `/conta/configuracoes`, `/conta/convites` (administrador) e `/convite`. Endereços antigos encaminham para o app oficial; dados fictícios não fazem parte da navegação.
 
@@ -65,6 +68,6 @@ npm run test:dev
 
 Playwright: `npx playwright install chromium`. Na nuvem, prefixe os comandos com `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`. Execute as suítes sequencialmente, deixando portas 3100/3102/3106 livres.
 
-A suíte oficial cobre rotas protegidas, convites, manifesto e worker. `test:real-ui` usa serviços fictícios isolados em `menchat.invalid`, microfone sintético, desktop/celular/320 px. Testes legados do protótipo permanecem arquivados, fora da seleção oficial. Testes locais não substituem a conferência no Supabase hospedado e em Android físico.
+A suíte oficial cobre rotas protegidas, convites, manifesto e worker. `test:real-ui` usa serviços fictícios isolados em `menchat.invalid`, câmera/microfone sintéticos, desktop/celular/320 px. Testa também câmera, reprodução, ampliação, respostas, menções, marcações e preservação de rascunho ao abrir configurações. Testes legados do protótipo permanecem arquivados, fora da seleção oficial. Testes locais não substituem a conferência no Supabase hospedado e em Android físico.
 
 Stack: Next.js App Router, React, TypeScript, Tailwind, Supabase e npm. Origem: template oficial Next.js `with-supabase`.
