@@ -1,6 +1,6 @@
 # Primeira conexão com Supabase no Windows
 
-Esta entrega verifica URL, chave publicável, acesso ao Auth e bloqueio de cadastro público. Não cria tabelas, não aplica migrações e não ativa login real. As conversas continuam sendo demonstração. O esquema do banco será a próxima entrega após validar a conexão.
+Esta entrega verifica URL, chave publicável, acesso ao Auth e bloqueio de cadastro público. Não cria tabelas, não aplica migrações e não ativa login real. As conversas continuam sendo demonstração. Após a conexão, aplique a base do banco e siga docs/primeiro-acesso-real.md para configurar a conta administrativa nas rotas reais.
 
 1. Baixe a versão atualizada do GitHub em Code → Download ZIP e extraia. Abra o Git Bash na pasta que contém `package.json`.
 2. No projeto MenChat do Supabase, clique em **Connect** e procure a **Project URL**. Também pode aparecer em Settings → Data API. Copie o endereço HTTPS do projeto, não o endereço do dashboard.
@@ -32,4 +32,4 @@ Resultado esperado: `Conexão com Supabase OK. Cadastro público bloqueado.` O t
 
 Se indicar cadastro aberto, volte a Authentication e desligue Allow new users to sign up. Se houver recusa, confira URL/chave do mesmo projeto; se houver falha de rede, confira se o projeto está ativo e se a rede permite o host do Supabase. Nunca copie mensagens contendo senhas ou chaves; o comando imprime apenas erros resumidos.
 
-7. Informe o resultado do comando. A etapa seguinte será preparar migrações e testes de banco, depois Auth e convites; a interface não está conectada a contas reais ainda.
+7. Informe o resultado do comando. Depois, siga docs/banco-inicial.md e docs/primeiro-acesso-real.md. O teste de conexão sozinho não cria nem ativa uma conta.

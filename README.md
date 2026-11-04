@@ -1,6 +1,6 @@
 # MenChat
 
-Um espaço para até 20 amigos e familiares, com acesso futuro exclusivamente por convite. Nesta etapa, você pode testar a interface e conversar com um assistente automático local, sem contas reais e sem outras pessoas conectadas.
+Um espaço para até 20 amigos e familiares, com acesso futuro exclusivamente por convite. Você pode testar a interface com um assistente automático local e configurar o primeiro acesso real com Supabase em /entrar. As conversas ainda são demonstração; mensagens entre contas reais e convites pelo aplicativo serão entregas seguintes.
 
 ## Abrir no Windows
 
@@ -139,7 +139,7 @@ docs/                  Pesquisa de limites e preparação do armazenamento
 
 O projeto começou com o template oficial [`with-supabase`](https://github.com/vercel/next.js/tree/canary/examples/with-supabase), commit `b0e1bf792f18c039933d8a9ce9d50d35f930f1be`. Stack: Next.js App Router, React, TypeScript, Tailwind e npm em Node.js 24.
 
-Não é necessário configurar Supabase nesta etapa. As fábricas em `lib/supabase/` não são chamadas. `.env.example` contém apenas os nomes de URL/chave publicável; os demais arquivos `.env*` são ignorados.
+Não é necessário configurar Supabase para usar a demonstração. As rotas de demonstração não chamam Supabase; as rotas reais novas usam os clientes SSR em `lib/supabase/`. `.env.example` contém apenas os nomes de URL/chave publicável; os demais arquivos `.env*` são ignorados.
 
 O convite AMIGOS20 valida somente o roteiro de demonstração: não protege rotas nem libera conta real. A liberação de usuários exige Supabase Auth com convites administrativos, limite de membros, unicidade de códigos no banco, autorização, RLS e armazenamento privado. Nada disso está ativo nesta versão. Nunca use `service_role`, secret keys ou credenciais administrativas em variáveis `NEXT_PUBLIC_`.
 
@@ -172,3 +172,9 @@ Siga [o guia de conexão no Windows](docs/conectar-supabase.md) para configurar 
 Após confirmar `npm run supabase:check`, siga o [guia para aplicar a base pelo SQL Editor](docs/banco-inicial.md). A migração `supabase/migrations/20261104000100_initial_accounts.sql` cria perfis e registros internos de convite, com RLS, privilégios restritos, códigos automáticos e limite transacional de 20 contas ativas. `supabase/verify.sql` verifica a versão aplicada. Login, OTP, envio/aceite de convites e mensagens reais ainda não foram ativados.
 
 Para testar SQL localmente com um PostgreSQL descartável (Docker necessário), use `npm run test:db`. Nenhuma credencial Supabase é usada. O guia explica os testes e seus limites; arquivos de `supabase/tests/` nunca devem ser aplicados no projeto hospedado.
+
+## Login real e primeiro administrador
+
+A base inicial foi confirmada pelo usuário. Siga [o primeiro acesso real](docs/primeiro-acesso-real.md) para aplicar a migração incremental de contagem, provisionar sua identidade Auth no painel, configurar o template de código e ativar seu perfil administrativo. Não há cadastro público, chave administrativa no app ou promoção automática do primeiro visitante.
+
+Rotas novas: `/entrar` (login real), `/primeiro-acesso` (OTP e definição/redefinição de senha) e `/conta` (perfil real, protegido no servidor por sessão validada e RLS). As rotas anteriores continuam na demonstração. Mensagens, convites e grupos reais serão etapas seguintes. O guia separa validação local/simulada do teste necessário no Supabase hospedado.

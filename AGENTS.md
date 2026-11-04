@@ -4,13 +4,13 @@
 
 - Aplicativo privado para até 20 amigos e familiares, exclusivamente por convite do administrador.
 - Trabalhe em etapas pequenas e verificáveis. Implemente apenas a etapa solicitada e pare ao concluí-la.
-- Etapa atual: interface de demonstração com respostas locais e início da integração Supabase. Conexão Auth/HTTP validada pelo usuário; base de perfis/convites versionada para aplicação no SQL Editor. Confirme o resultado de verify.sql antes de assumir que a migração foi aplicada. Login real, aceite de convites, mensagens persistentes e PWA ainda não estão ativos.
+- Etapa atual: interface de demonstração com respostas locais e início da integração Supabase. Conexão Auth/HTTP validada pelo usuário; base de perfis/convites versionada para aplicação no SQL Editor. Confirme o resultado de verify.sql antes de assumir que a migração foi aplicada. Login real em /entrar, primeiro acesso por OTP em /primeiro-acesso e perfil protegido em /conta estão implementados; verificar validação no Supabase hospedado com o usuário. Aceite de convites, mensagens persistentes e PWA ainda não estão ativos.
 - Interface e textos em português do Brasil; marca atual MenChat. Login minimalista, somente marca/formulário/ações, com animação que respeita redução de movimento.
 
 ## Stack e organização
 
 - Node.js 24 LTS, npm, Next.js estável com App Router, React, TypeScript estrito e Tailwind CSS.
-- `app/`: rotas, metadados e layout; `components/`: componentes; `lib/data/`: dados fictícios; `types/`: tipos de domínio; `tests/`: testes Node/Playwright; `lib/supabase/`: fábricas oficiais ainda inativas.
+- `app/`: rotas, metadados e layout; `components/`: componentes; `lib/data/`: dados fictícios; `types/`: tipos de domínio; `tests/`: testes Node/Playwright; `lib/supabase/`: clientes SSR e renovação de sessão das rotas reais.
 - Prefira Server Components. Use `"use client"` somente para estado e eventos de interface.
 - Use as APIs oficiais atuais do Next.js e Supabase. Mantenha `package-lock.json` atualizado pelo npm e use `npm ci` para reproduzir instalações.
 - Preserve o Git existente; use o checkout da tarefa. Não crie worktrees a menos que o usuário peça.
@@ -20,8 +20,8 @@
 - Cadastro real permanece exclusivo por convite. `/cadastro` cria apenas perfil local de demonstração, com convite de teste AMIGOS20. Não transforme isso em controle de acesso real.
 - Não registre senhas, tokens ou dados de formulário. Não grave segredos no repositório.
 - Somente URL e chave publicável do Supabase podem usar `NEXT_PUBLIC_`. Chaves administrativas/secretas nunca podem estar no cliente.
-- Não ative as fábricas Supabase sem nova solicitação de integração. Na integração futura, configure renovação de sessão no servidor conforme documentação oficial, autorização e RLS antes de dados reais.
-- As rotas atuais são demonstrações públicas, não áreas protegidas. Perfil, tema e preferências ficam no armazenamento local, sem e-mail ou senha; mensagens, grupos e anexos são temporários na memória da aba. Respostas automáticas devem ser identificadas como simulação. Não prometa segurança, privacidade operacional ou criptografia ponta a ponta ainda não implementadas.
+- A integração Auth/SSR foi autorizada para as rotas reais novas. Preserve renovação de sessão no servidor, validação de identidade e RLS. Mensagens, convites operacionais e PWA permanecem etapas posteriores.
+- /login, /cadastro, /perfil, /conversas e /configuracoes são demonstrações públicas; /conta é protegida no servidor por identidade validada e perfil ativo. Perfil, tema e preferências ficam no armazenamento local, sem e-mail ou senha; mensagens, grupos e anexos são temporários na memória da aba. Respostas automáticas devem ser identificadas como simulação. Não prometa segurança, privacidade operacional ou criptografia ponta a ponta ainda não implementadas.
 
 ## Interface e validação
 
@@ -58,4 +58,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Bola de neve: uma vez por pessoa em cada conversa. Protótipo em memória, sem alertas ao reabrir histórico; futuro banco deve garantir unicidade por conversa/remetente. O teste mostra recebimento local, não entrega remota. Respeitar notificações, silenciamento, redução de movimento e opções de vibração/animação; não prometer vibração em Safari/iPhone ou em segundo plano.
 - Recorte deve salvar os mesmos ajustes da prévia. Confirmação de remoção de grupo deve ficar visível e receber foco; preserve as regras do criador e dos administradores.
 
-- Integração iniciada pela configuração pública e `npm run supabase:check`. O teste é somente leitura do Auth e exige cadastro público bloqueado; não equivale a validar PostgreSQL/RLS. Conexão confirmada pelo usuário; base de perfis/convites em supabase/migrations, com aplicação manual no SQL Editor. Executar npm run test:db ao alterar SQL. Guia: docs/banco-inicial.md. Login real, aceite atômico de convites/OTP e mensagens ainda não estão ativos.
+- Integração iniciada pela configuração pública e `npm run supabase:check`. O teste é somente leitura do Auth e exige cadastro público bloqueado; não equivale a validar PostgreSQL/RLS. Conexão confirmada pelo usuário; base de perfis/convites em supabase/migrations, com aplicação manual no SQL Editor. Executar npm run test:db ao alterar SQL. Guia: docs/banco-inicial.md. Primeiro acesso administrativo: docs/primeiro-acesso-real.md. Mensagens e aceite atômico de convites para amigos ainda não estão ativos.
+
+## Acesso real
+
+- /entrar, /primeiro-acesso e /conta usam Auth real; rotas antigas são demo. Não converter uma falha de Auth em acesso demo ou privado. Validar getUser no servidor e perfil próprio ativo por RLS em cada recurso protegido.
+- Proxy SSR mantém cookies e cabeçalhos privados/no-store. Não armazenar cliente Supabase global entre requisições. Senha e OTP nunca entram em logs, URLs ou armazenamento local da aplicação.
+- Cadastro público permanece bloqueado. OTP usa shouldCreateUser:false para identidades administrativamente provisionadas e confirmadas no Auth, sem criar perfil/ativar membros. Apenas após verificar o código o fluxo redefine a senha.
+- Primeiro administrador é escolhido manualmente pelo proprietário no SQL Editor (setup-owner.sql), após o OTP independente. Auto Confirm do painel é provisão administrativa, não prova de posse do e-mail; não confundir isso com verificação de convite. Não promover primeiro visitante nem expor endpoint de bootstrap público.
+- Migrações aplicadas são imutáveis. 20261104000200_profile_accounting corrige a contagem para AFTER e repara divergências anteriores de upsert. Executar test:db ao alterar SQL, incluindo repetição e concorrência.

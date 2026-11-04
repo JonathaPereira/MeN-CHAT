@@ -89,3 +89,23 @@ test("scripts do Next aceitam somente as origens desta máquina", async ({
   });
   expect(rejectedReferer.status()).toBe(403);
 });
+
+test("rotas reais usam proxy e exigem sessão também em desenvolvimento", async ({
+  page,
+}) => {
+  const response = await page.goto("/conta");
+  await expect(page).toHaveURL(/\/entrar$/);
+  await expect(
+    page.getByRole("heading", { name: "Entrar na conta real", exact: true }),
+  ).toBeVisible();
+  expect(response?.headers()["cache-control"]).toContain("no-store");
+  await page
+    .getByRole("link", { name: "Primeiro acesso ou redefinir senha" })
+    .click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Verificar e-mail e definir senha",
+      exact: true,
+    }),
+  ).toBeVisible();
+});

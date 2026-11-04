@@ -89,6 +89,40 @@ try {
     "utf8",
   );
   await sql(migration);
+  // Reproduz o contador antigo antes de aplicar a correção incremental.
+  await sql(
+    "insert into auth.users(id) values ('90000000-0000-0000-0000-000000000001'); insert into public.menchat_profiles(id,display_name,account_status) values ('90000000-0000-0000-0000-000000000001','Repetido','active'); insert into public.menchat_profiles(id,display_name,account_status) values ('90000000-0000-0000-0000-000000000001','Repetido','active') on conflict (id) do update set display_name = excluded.display_name;",
+  );
+  assert.equal(
+    await sql("select active_profiles from menchat_private.app_state;"),
+    "2",
+  );
+  await sql(
+    await readFile(
+      new URL(
+        "../supabase/migrations/20261104000200_profile_accounting.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    await sql("select active_profiles from menchat_private.app_state;"),
+    "1",
+  );
+  await sql(
+    "insert into public.menchat_profiles(id,display_name,account_status) values ('90000000-0000-0000-0000-000000000001','Repetido','active') on conflict (id) do update set display_name = excluded.display_name;",
+  );
+  assert.equal(
+    await sql("select active_profiles from menchat_private.app_state;"),
+    "1",
+  );
+  await sql(
+    "delete from auth.users where id = '90000000-0000-0000-0000-000000000001';",
+  );
+  console.log(
+    "PASS: upgrade corrige o contador antigo e upsert não consome vaga extra.",
+  );
   assert.match(
     await sql(
       await readFile(
@@ -111,9 +145,52 @@ try {
   await assert.rejects(sql(migration));
   assert.equal(
     await sql("select count(*) from menchat_private.schema_migrations;"),
-    "1",
+    "2",
   );
   console.log("PASS: reaplicação não altera o esquema existente.");
+  const ownerScript = (
+    await readFile(
+      new URL("../supabase/setup-owner.sql", import.meta.url),
+      "utf8",
+    )
+  )
+    .replace(/begin;\s*do/i, "do")
+    .replace(/commit;\s*$/, "");
+  const owner = ownerScript.replace(
+    "lower(btrim('SEU_EMAIL_AQUI'))",
+    "lower(btrim('owner@example.test'))",
+  );
+  await assert.rejects(
+    sql(`begin; ${owner} rollback;`),
+    /não encontrada|não verificado/,
+  );
+  await sql(
+    "insert into auth.users(id,email) values ('10000000-0000-0000-0000-000000000001','owner@example.test');",
+  );
+  await assert.rejects(sql(`begin; ${owner} rollback;`), /não verificado/);
+  await sql(
+    "update auth.users set email_confirmed_at = now() where email = 'owner@example.test';",
+  );
+  await sql(
+    `begin; ${owner} ${owner} do $$ begin if (select active_profiles from menchat_private.app_state) <> 1 then raise exception 'Proprietário repetido alterou contador.'; end if; end $$; rollback;`,
+  );
+  await sql(
+    "insert into auth.users(id,email,email_confirmed_at) values ('10000000-0000-0000-0000-000000000002','other@example.test',now());",
+  );
+  await assert.rejects(
+    sql(
+      `begin; ${owner} ${owner.replaceAll("owner@example.test", "other@example.test")} rollback;`,
+    ),
+    /Já existe outro/,
+  );
+  await sql("delete from auth.users;");
+  assert.equal(
+    await sql("select active_profiles from menchat_private.app_state;"),
+    "0",
+  );
+  console.log(
+    "PASS: proprietário exige e-mail verificado, é idempotente e não promove outra pessoa.",
+  );
   await sql(
     "insert into auth.users(id) select ('00000000-0000-0000-0000-' || lpad(i::text,12,'0'))::uuid from generate_series(1,21) i;",
   );

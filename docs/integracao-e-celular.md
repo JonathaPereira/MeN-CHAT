@@ -1,6 +1,6 @@
 # Integração do MenChat e versão para celular
 
-Este é o roteiro de execução das próximas etapas, com uma entrega verificável por vez. A versão atual ainda é uma demonstração local: preencher `.env.local` não ativa login, mensagens ou convites reais. Não publique esta demonstração como se já fosse um chat privado.
+Este é o roteiro de execução das próximas etapas, com uma entrega verificável por vez. A versão atual tem demonstração local e rotas de primeiro acesso real que exigem configuração do Supabase e ativação administrativa. Preencher `.env.local` sozinho não cria contas, mensagens ou convites. Siga [o guia de primeiro acesso](primeiro-acesso-real.md) para validar o login hospedado. Não publique esta demonstração como se já fosse um chat privado.
 
 A ordem recomendada é Supabase → login por convite → conversas reais → mídia → publicação HTTPS → instalação PWA → push. A mesma aplicação atende computador e celular. APK/App Store não são necessários para começar.
 
@@ -43,7 +43,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=SUA_CHAVE_PUBLICAVEL
 6. Salve o arquivo. `.env.local` é ignorado pelo Git; não o adicione com `git add -f`. A senha do banco e a chave administrativa não entram nesse arquivo de exemplo.
 7. Para continuarmos, basta informar que o projeto de teste foi criado. Se formos configurar um ambiente de execução remoto, use o mecanismo de variáveis/segredos desse ambiente; o arquivo do seu Windows não é transferido automaticamente.
 
-O que eu implementarei na entrega seguinte: configuração validada, esquema inicial versionado em migrações, tipos do banco e verificações locais de conexão. Não usaremos banco com dados reais para experimentar migrações. As fábricas Supabase atuais ainda estão inativas.
+O que eu implementarei na entrega seguinte: configuração validada, esquema inicial versionado em migrações, tipos do banco e verificações locais de conexão. Não usaremos banco com dados reais para experimentar migrações. Os clientes SSR agora são usados apenas nas rotas reais /entrar, /primeiro-acesso e /conta.
 
 Conclusão da etapa: conexão de teste validada e esquema revisável; não confundir abrir a tela de demonstração com testar acesso ao banco. Se já houver um projeto com dados reais, primeiro identificar esquema e fazer cópia de segurança antes de qualquer migração.
 

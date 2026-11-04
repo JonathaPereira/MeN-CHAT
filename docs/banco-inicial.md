@@ -10,8 +10,9 @@ A conexão Auth/HTTP foi validada no Windows. Agora vamos criar apenas a base de
 4. Cole no editor do Supabase com **Ctrl+V**. O texto começa com comentários de MenChat e `begin;` e termina com `commit;`.
 5. Clique em **Run**. A migração cria `public.menchat_profiles` e o schema interno `menchat_private`. Não apaga tabelas nem cria contas, e não contém segredos ou dados de pessoas.
 6. O resultado esperado é **Success. No rows returned** ou indicação equivalente de sucesso. Se houver erro, pare e copie a mensagem; não apague tabelas para tentar novamente. A transação é atômica. Se já foi aplicada, executar novamente dá conflito e não substitui os objetos existentes.
-7. Abra outra consulta e cole o conteúdo de [verify.sql](https://raw.githubusercontent.com/JonathaPereira/MeN-CHAT/main/supabase/verify.sql). Clique em **Run**. O resultado esperado é uma linha com `resultado = BASE_OK`, a versão `20261104000100_initial_accounts` e `contas_ativas = 0`.
-8. Informe somente esse resultado ou o erro. Não compartilhe chaves, senhas ou dados de pessoas.
+7. Em uma consulta nova, aplique também [a correção incremental de contagem](https://raw.githubusercontent.com/JonathaPereira/MeN-CHAT/main/supabase/migrations/20261104000200_profile_accounting.sql), uma vez. Ela evita contagem dupla ao gravar um perfil existente e ajusta o contador aos perfis reais. Não repita a migração inicial.
+8. Abra outra consulta e cole o conteúdo de [verify.sql](https://raw.githubusercontent.com/JonathaPereira/MeN-CHAT/main/supabase/verify.sql). Clique em **Run**. O resultado esperado é uma linha com `resultado = BASE_OK`, a versão `20261104000200_profile_accounting` e `contas_ativas = 0`.
+9. Informe somente esse resultado ou o erro. Não compartilhe chaves, senhas ou dados de pessoas.
 
 Alternativa usando a cópia extraída do GitHub, no Git Bash:
 

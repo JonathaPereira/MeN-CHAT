@@ -7,6 +7,9 @@ begin
   if not exists (select 1 from menchat_private.schema_migrations where version = '20261104000100_initial_accounts') then
     raise exception 'Versão inicial não encontrada.';
   end if;
+  if not exists (select 1 from menchat_private.schema_migrations where version = '20261104000200_profile_accounting') then
+    raise exception 'Aplique a migração 20261104000200_profile_accounting para corrigir a contagem.';
+  end if;
   if not (select relrowsecurity from pg_class where oid = 'public.menchat_profiles'::regclass) then
     raise exception 'RLS de perfis precisa estar habilitada.';
   end if;
@@ -19,6 +22,6 @@ begin
 end;
 $$;
 select 'BASE_OK' as resultado,
-       '20261104000100_initial_accounts' as versao,
+       '20261104000200_profile_accounting' as versao,
        (select active_profiles from menchat_private.app_state) as contas_ativas;
 -- BASE_OK valida esta base, não o login, e-mail, Realtime ou os convites futuros.

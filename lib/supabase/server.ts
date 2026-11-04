@@ -1,5 +1,6 @@
 import { parseSupabaseConfig } from "./config";
 import "server-only";
+import { authFetch } from "./request";
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -17,6 +18,7 @@ export async function createClient() {
   );
 
   return createServerClient(config.url, config.key, {
+    global: { fetch: authFetch },
     cookies: {
       getAll() {
         return cookieStore.getAll();
