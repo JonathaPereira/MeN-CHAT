@@ -1,5 +1,7 @@
 # Login real e primeira conta administrativa
 
+Para novos amigos, use agora [Convites pelo aplicativo](convites-pelo-aplicativo.md): configuração única e ativação automática após OTP. O provisionamento manual abaixo documenta a entrega inicial e não é necessário para cada convite.
+
 Esta entrega adiciona `/entrar`, `/primeiro-acesso` e `/conta`. As rotas antigas `/login`, `/cadastro`, `/perfil` e `/conversas` continuam como demonstração local, sem mensagens reais. Há um link “Entrar na conta real” na tela antiga. O cadastro público deve continuar desligado.
 
 ## 1. Aplicar a correção do contador

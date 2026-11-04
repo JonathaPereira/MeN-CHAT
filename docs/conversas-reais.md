@@ -1,5 +1,7 @@
 # Conversas privadas reais
 
+Para novos amigos, use agora [Convites pelo aplicativo](convites-pelo-aplicativo.md): configuração única e ativação automática após OTP. O provisionamento manual abaixo documenta a entrega inicial e não é necessário para cada convite.
+
 Esta entrega liga texto privado ao PostgreSQL e Supabase Realtime. Grupos, anexos, áudios, digitação, recibos, presença online e convites de cadastro pelo app ainda são demonstrações ou etapas futuras. O indicador “Ao vivo” informa o canal de atualização, não se outra pessoa está online.
 
 1. No projeto MenChat, SQL Editor → New query, aplique uma vez [20261104000300_private_chat.sql](https://raw.githubusercontent.com/JonathaPereira/MeN-CHAT/main/supabase/migrations/20261104000300_private_chat.sql). Mantenha as migrações anteriores. O SQL cadastra mensagens na publicação `supabase_realtime` quando ela existe. No painel Database → Replication/Publications, confira que `menchat_messages` está habilitada para Realtime; se a publicação não existir, configure esse recurso no painel antes do teste ao vivo.

@@ -117,6 +117,33 @@ try {
   );
   await sql(
     await readFile(
+      new URL(
+        "../supabase/migrations/20261104000400_managed_invitations.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  assert.match(
+    await sql(
+      await readFile(
+        new URL("../supabase/verify-invitations.sql", import.meta.url),
+        "utf8",
+      ),
+    ),
+    /CONVITES_OK/,
+  );
+  await sql(
+    await readFile(
+      new URL("../supabase/tests/invitations.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  console.log(
+    "PASS: convites exigem admin, e-mail e OTP recente; uso único, revogação, validade, cota e privilégios.",
+  );
+  await sql(
+    await readFile(
       new URL("../supabase/tests/private-chat.sql", import.meta.url),
       "utf8",
     ),
@@ -163,7 +190,7 @@ try {
   await assert.rejects(sql(migration));
   assert.equal(
     await sql("select count(*) from menchat_private.schema_migrations;"),
-    "3",
+    "4",
   );
   console.log("PASS: reaplicação não altera o esquema existente.");
   const ownerScript = (
@@ -208,6 +235,41 @@ try {
   );
   console.log(
     "PASS: proprietário exige e-mail verificado, é idempotente e não promove outra pessoa.",
+  );
+  // Reservas concorrentes não podem ultrapassar a capacidade restante.
+  await sql(
+    "insert into auth.users(id,email,email_confirmed_at) select ('50000000-0000-0000-0000-'||lpad(i::text,12,'0'))::uuid,'race'||i||'@example.test',now() from generate_series(1,22) i; insert into public.menchat_profiles(id,display_name,account_status,app_role) values('50000000-0000-0000-0000-000000000001','Admin','active','admin');",
+  );
+  const reservations = await Promise.allSettled(
+    Array.from({ length: 21 }, (_, index) => {
+      const i = index + 2;
+      return sql(
+        `select set_config('request.jwt.claim.sub','50000000-0000-0000-0000-000000000001',false); set role authenticated; select public.menchat_create_invite('race${i}@example.test',('50000000-0000-0000-0000-'||lpad('${i}',12,'0'))::uuid,encode(sha256(convert_to(repeat(lpad('${i}',2,'0'),21)||'A','UTF8')),'hex'));`,
+      );
+    }),
+  );
+  assert.equal(reservations.filter((r) => r.status === "fulfilled").length, 19);
+  const winner = await sql(
+    "select pending_user_id from menchat_private.invitations where consumed_at is null and revoked_at is null order by pending_user_id limit 1;",
+  );
+  assert.match(winner, /^50000000-0000-0000-0000-[0-9]{12}$/);
+  const number = Number(winner.slice(-12));
+  const accept = `select set_config('request.jwt.claim.sub','${winner}',false); select set_config('request.jwt.claims',jsonb_build_object('amr',jsonb_build_array(jsonb_build_object('method','otp','timestamp',extract(epoch from now())::bigint)))::text,false); set role authenticated; select public.menchat_accept_invite(repeat(lpad('${number}',2,'0'),21)||'A','Aceite concorrente');`;
+  const accepts = await Promise.allSettled([sql(accept), sql(accept)]);
+  assert.equal(accepts.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(
+    await sql(
+      "select count(*) from menchat_private.invitations where consumed_at is not null;",
+    ),
+    "1",
+  );
+  assert.equal(
+    await sql("select active_profiles from menchat_private.app_state;"),
+    "2",
+  );
+  await sql("delete from menchat_private.invitations; delete from auth.users;");
+  console.log(
+    "PASS: 21 reservas concorrentes deixam 19 vagas com um admin; dois aceites simultâneos consomem o convite uma vez.",
   );
   await sql(
     "insert into auth.users(id) select ('00000000-0000-0000-0000-' || lpad(i::text,12,'0'))::uuid from generate_series(1,21) i;",

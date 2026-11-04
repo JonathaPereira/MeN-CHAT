@@ -16,7 +16,7 @@ test("login tem somente marca, formulário e ações, com animação e clipe sem
   page,
 }) => {
   await page.goto("/login");
-  await expect(page.locator(".brand-word")).toHaveText("MenChat");
+  await expect(page.locator(".brand-word")).toHaveText("Men");
   await expect(page.getByText("Perto de quem", { exact: false })).toHaveCount(
     0,
   );

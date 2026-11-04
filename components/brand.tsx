@@ -7,6 +7,7 @@ export function Brand({
 }) {
   return (
     <div
+      aria-label="MenChat · Memes e Nerds"
       className={`menchat-brand ${light ? "text-white" : "text-[var(--ink)]"} ${large ? "brand-large" : ""}`}
     >
       <span className="brand-mark">
@@ -21,15 +22,13 @@ export function Brand({
           strokeLinejoin="round"
           aria-hidden="true"
         >
-          <path d="M12 10h16c5 0 7 5 8 14 1 6-3 8-7 3l-3-3H14l-3 3c-4 5-8 3-7-3 1-9 3-14 8-14Z" />
-          <path d="M12 15v7m-3.5-3.5h7M18 28v5l6-5" />
+          <path d="M13 10c-6-1-8 5-9 13-1 6 3 8 8 3h10l6 6v-6c8 0 9-3 8-8-1-6-4-10-9-8-5 2-8 2-14 0Z" />
+          <path d="M12 15v7m-3.5-3.5h7" />
           <circle cx="27" cy="16" r="1" fill="currentColor" stroke="none" />
           <circle cx="30" cy="20" r="1" fill="currentColor" stroke="none" />
         </svg>
       </span>
-      <span className="brand-word">
-        Men<span className="text-[0.55em]">Chat</span>
-      </span>
+      <span className="brand-word">Men</span>
     </div>
   );
 }

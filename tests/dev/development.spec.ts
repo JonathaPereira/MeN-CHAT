@@ -99,6 +99,9 @@ test("rotas reais usam proxy e exigem sessão também em desenvolvimento", async
     page.getByRole("heading", { name: "Entrar na conta real", exact: true }),
   ).toBeVisible();
   expect(response?.headers()["cache-control"]).toContain("no-store");
+  const inviteAdmin = await page.goto("/conta/convites");
+  await expect(page).toHaveURL(/\/entrar$/);
+  expect(inviteAdmin?.headers()["cache-control"]).toContain("no-store");
   await page
     .getByRole("link", { name: "Primeiro acesso ou redefinir senha" })
     .click();
@@ -108,4 +111,12 @@ test("rotas reais usam proxy e exigem sessão também em desenvolvimento", async
       exact: true,
     }),
   ).toBeVisible();
+  const invite = await page.goto(`/convite#token=${"A".repeat(43)}`);
+  await expect(page.getByLabel("Seu e-mail convidado")).toBeVisible();
+  await expect(page).toHaveURL(/\/convite$/);
+  expect(invite?.headers()["cache-control"]).toContain("no-store");
+  await page.getByLabel("Seu e-mail convidado").fill("amigo@example.test");
+  await expect(page.getByLabel("Seu e-mail convidado")).toHaveValue(
+    "amigo@example.test",
+  );
 });

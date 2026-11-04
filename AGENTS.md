@@ -4,7 +4,7 @@
 
 - Aplicativo privado para até 20 amigos e familiares, exclusivamente por convite do administrador.
 - Trabalhe em etapas pequenas e verificáveis. Implemente apenas a etapa solicitada e pare ao concluí-la.
-- Etapa atual: interface de demonstração com respostas locais e início da integração Supabase. Conexão Auth/HTTP validada pelo usuário; base de perfis/convites versionada para aplicação no SQL Editor. Confirme o resultado de verify.sql antes de assumir que a migração foi aplicada. Login real em /entrar, primeiro acesso por OTP em /primeiro-acesso e perfil protegido em /conta estão implementados; verificar validação no Supabase hospedado com o usuário. Texto privado em /conta/chat implementado com migração 20261104000300_private_chat; validar publicação Realtime e duas contas no projeto hospedado com o usuário. Aceite de convites, grupos/mídia reais e PWA continuam posteriores.
+- Etapa atual: interface de demonstração com respostas locais e início da integração Supabase. Conexão Auth/HTTP validada pelo usuário; base de perfis/convites versionada para aplicação no SQL Editor. Confirme o resultado de verify.sql antes de assumir que a migração foi aplicada. Login real em /entrar, primeiro acesso por OTP em /primeiro-acesso e perfil protegido em /conta estão implementados; verificar validação no Supabase hospedado com o usuário. Texto privado em /conta/chat implementado com migração 20261104000300_private_chat; validar publicação Realtime e duas contas no projeto hospedado com o usuário. Convites pelo aplicativo implementados na migração 4 e em /conta/convites e /convite; validar Auth/AMR/SMTP hospedados após a configuração única. Grupos/mídia reais e PWA continuam posteriores.
 - Interface e textos em português do Brasil; marca atual MenChat. Login minimalista, somente marca/formulário/ações, com animação que respeita redução de movimento.
 
 ## Stack e organização
@@ -20,7 +20,7 @@
 - Cadastro real permanece exclusivo por convite. `/cadastro` cria apenas perfil local de demonstração, com convite de teste AMIGOS20. Não transforme isso em controle de acesso real.
 - Não registre senhas, tokens ou dados de formulário. Não grave segredos no repositório.
 - Somente URL e chave publicável do Supabase podem usar `NEXT_PUBLIC_`. Chaves administrativas/secretas nunca podem estar no cliente.
-- A integração Auth/SSR foi autorizada para as rotas reais novas. Preserve renovação de sessão no servidor, validação de identidade e RLS. Mensagens, convites operacionais e PWA permanecem etapas posteriores.
+- A integração Auth/SSR foi autorizada para as rotas reais novas. Preserve renovação de sessão no servidor, validação de identidade e RLS. Texto privado e convites operacionais são autorizados; grupos/mídia/PWA permanecem posteriores.
 - /login, /cadastro, /perfil, /conversas e /configuracoes são demonstrações públicas; /conta é protegida no servidor por identidade validada e perfil ativo. Perfil, tema e preferências ficam no armazenamento local, sem e-mail ou senha; mensagens, grupos e anexos são temporários na memória da aba. Respostas automáticas devem ser identificadas como simulação. Não prometa segurança, privacidade operacional ou criptografia ponta a ponta ainda não implementadas.
 
 ## Interface e validação
@@ -30,7 +30,7 @@
 - Gravação começa no clique do microfone e a seta envia diretamente; ouvir antes é opcional, sem confirmação de anexo obrigatória. Use MediaRecorder mediante ação e permissão explícitas. Libere streams ao parar, sair ou cancelar, inclusive se a permissão resolver depois do fechamento. HTTP na rede local não oferece gravação; mantenha a opção de anexar áudio.
 - Notificações de sistema só pedem permissão por botão, exigem contexto seguro e não são push com o app fechado. Download automático controla prévias, nunca salvamento em disco sem ação. Não prometa suporte móvel universal.
 - Perfis, visibilidade do código, leituras e digitação são demonstrações; filtre os participantes da conversa, respeite as opções locais e identifique as simulações. Nunca apresente filtros do frontend como autorização real.
-- Convites reais deverão exigir e-mail vinculado e verificação independente na aceitação, além de uso único atômico, validade e revogação. Um link de uso único sozinho pode ser repassado antes de usado. Consulte docs/convites-e-privacidade.md; não implemente Auth/RLS sem uma nova etapa de integração.
+- Convites reais deverão exigir e-mail vinculado e verificação independente na aceitação, além de uso único atômico, validade e revogação. Um link de uso único sozinho pode ser repassado antes de usado. Consulte docs/convites-e-privacidade.md; a etapa de convites operacionais está autorizada; mantenha os controles no servidor e no banco.
 - Grupos têm criador imutável, dono e administradores separados. Nunca permita remoção ou rebaixamento do criador por outro, inclusive após transferência. O dono transfere antes de sair se houver outros membros; quem saiu não envia ou administra. Convite por código adiciona apenas perfil já existente na demonstração; não cria acesso ao aplicativo.
 - Identifique dados fictícios e funcionalidades indisponíveis; evite controles que pareçam executar ações reais.
 - Antes de concluir: `npm run lint`, `npm run typecheck`, `npm run build`, `npm test`, `npm run test:e2e` e smoke test das páginas e interações em desktop e celular quando houver navegador disponível.
@@ -58,7 +58,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Bola de neve: uma vez por pessoa em cada conversa. Protótipo em memória, sem alertas ao reabrir histórico; futuro banco deve garantir unicidade por conversa/remetente. O teste mostra recebimento local, não entrega remota. Respeitar notificações, silenciamento, redução de movimento e opções de vibração/animação; não prometer vibração em Safari/iPhone ou em segundo plano.
 - Recorte deve salvar os mesmos ajustes da prévia. Confirmação de remoção de grupo deve ficar visível e receber foco; preserve as regras do criador e dos administradores.
 
-- Integração iniciada pela configuração pública e `npm run supabase:check`. O teste é somente leitura do Auth e exige cadastro público bloqueado; não equivale a validar PostgreSQL/RLS. Conexão confirmada pelo usuário; base de perfis/convites em supabase/migrations, com aplicação manual no SQL Editor. Executar npm run test:db ao alterar SQL. Guia: docs/banco-inicial.md. Primeiro acesso administrativo: docs/primeiro-acesso-real.md. Mensagens e aceite atômico de convites para amigos ainda não estão ativos.
+- Integração iniciada pela configuração pública e `npm run supabase:check`. O teste é somente leitura do Auth e exige cadastro público bloqueado; não equivale a validar PostgreSQL/RLS. Conexão confirmada pelo usuário; base de perfis/convites em supabase/migrations, com aplicação manual no SQL Editor. Executar npm run test:db ao alterar SQL. Guia: docs/banco-inicial.md. Primeiro acesso administrativo: docs/primeiro-acesso-real.md. Texto privado e aceite atômico de convites para amigos estão implementados em migrações posteriores; consulte os guias específicos.
 
 ## Acesso real
 
@@ -72,4 +72,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - `/conta/chat` usa sessão validada e RLS; `/conversas` continua demo. Não confundir canal “Ao vivo” com presença de usuários.
 - Migração 20261104000300_private_chat: exatamente dois participantes fixos, somente texto, sem edição/exclusão; admins não leem privados alheios. Manter limites de busca no banco e idempotência dos envios.
-- Grupos/mídia/presença/recibos/convites reais continuam posteriores. Testar no Postgres e em duas contas hospedadas antes de anunciar entrega ao vivo validada.
+- Grupos/mídia/presença/recibos reais continuam posteriores. Testar no Postgres e em duas contas hospedadas antes de anunciar entrega ao vivo validada.
+
+## Convites operacionais e próximas etapas
+
+- Guia: `docs/convites-pelo-aplicativo.md`; etapas: `docs/etapas-avancadas.md`. Concluir uma entrega por vez, sem avançar automaticamente.
+- Migração 4: administrador ativo gera/revoga; servidor provisiona Auth sem senha/sessão; perfil só é ativado como membro após OTP independente recente, identidade/e-mail coincidentes, token válido não consumido. Limite atômico de 20 contas/reservas, validade 72h, reemissão revoga anterior.
+- `SUPABASE_SECRET_KEY` somente em módulo `server-only`, sem `NEXT_PUBLIC_`; validar administrador na Action antes de usar Admin API e novamente na RPC de mutação. Preparo limitado a 30 tentativas/admin/hora antes do provisionamento Auth. Contas antigas não confirmadas não são promovidas automaticamente.
+- Link usa fragmento; token sai do endereço após leitura e fica na memória da página, nunca em logs/storage do app. Banco guarda só SHA-256, mas aceite exige token original, não seu hash. Não transmitir segredo administrativo para o cliente.
+- Auth e banco não são uma transação: falha/revogação após OTP não pode conceder perfil ativo; não apagar automaticamente identidades após falhas ambíguas. Testar concorrência e negação para membro/anônimo, JWT sem OTP recente, e-mail divergente, expiração, revogação e repetição.

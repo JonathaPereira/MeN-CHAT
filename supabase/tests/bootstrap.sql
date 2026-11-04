@@ -7,6 +7,9 @@ create table auth.users (id uuid primary key, email text unique, email_confirmed
 create function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
 $$;
+create function auth.jwt() returns jsonb language sql stable as $$
+  select coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb);
+$$;
 grant usage on schema auth, public to anon, authenticated, service_role;
 -- Simula projetos que concedem acesso amplo por padrão: a migração deve revogar.
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;

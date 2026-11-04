@@ -1,6 +1,8 @@
 # MenChat
 
-Um espaço para até 20 amigos e familiares, com acesso futuro exclusivamente por convite. Você pode testar a interface com um assistente automático local e configurar o primeiro acesso real com Supabase em /entrar. O chat /conversas é demonstração; /conta/chat implementa texto privado real após configurar o Supabase e aplicar a migração do chat. Convites pelo aplicativo, grupos e mídia reais ficam para as próximas entregas.
+Um espaço privado para até 20 amigos e familiares, exclusivamente por convite. Login real em `/entrar`, conta em `/conta`, texto privado em `/conta/chat` e administração de convites em `/conta/convites`. A entrada `/` abre o login real. O protótipo com assistente automático permanece em `/login` e `/conversas`.
+
+**Nova entrega:** [configurar convites automáticos](docs/convites-pelo-aplicativo.md), com vínculo ao e-mail, OTP independente, uso único, validade e revogação. O administrador deixa de ativar cada amigo no painel após a configuração única. [Etapas de qualidade, funcionalidade e distribuição](docs/etapas-avancadas.md) definem a continuação; grupos, anexos, digitação e recibos reais ainda são posteriores.
 
 ## Abrir no Windows
 
@@ -13,7 +15,7 @@ npm.cmd ci --cache "%LOCALAPPDATA%\npm-cache"
 npm.cmd run dev
 ```
 
-Quando aparecer `Ready`, abra `http://localhost:3000` no seu navegador. Mantenha o terminal aberto; Ctrl+C encerra o servidor. Depois de baixar uma nova versão, pare o servidor, execute novamente `npm.cmd ci` e inicie o projeto.
+Quando aparecer `Ready`, abra `http://127.0.0.1:3000` no seu navegador. Mantenha o terminal aberto; Ctrl+C encerra o servidor. Depois de baixar uma nova versão, pare o servidor, execute novamente `npm.cmd ci` e inicie o projeto.
 
 Em Linux/macOS, com Node.js 24, use `npm ci` e `npm run dev`. `.nvmrc` fixa a versão principal. `.npmrc` configura cache em `/tmp` para a nuvem; o comando Windows acima sobrescreve essa opção.
 
@@ -30,7 +32,7 @@ Em Linux/macOS, com Node.js 24, use `npm ci` e `npm run dev`. `.nvmrc` fixa a ve
 4. No navegador do celular, abra `http://SEU-IPV4:3000`. Exemplo: se o IPv4 for `192.168.1.10`, abra `http://192.168.1.10:3000`.
 5. Se o Firewall do Windows perguntar, permita Node.js em **redes privadas**. Mantenha o computador ligado e o terminal aberto. Redes de convidados podem impedir a comunicação entre aparelhos.
 
-O endereço `localhost` no celular aponta para o próprio celular; use o IPv4 do Windows. O acesso acima serve para testar na rede local. Não configure redirecionamento de portas no roteador. Para acessar fora do Wi-Fi, será necessário hospedar uma versão de demonstração, o que ainda não foi feito.
+O endereço `localhost` no celular aponta para o próprio celular; use o IPv4 do Windows. O acesso acima serve para testar na rede local. Não configure redirecionamento de portas no roteador. A publicação HTTPS atual está em https://men-chat.vercel.app; use-a para acessar fora do Wi-Fi e testar contas reais.
 
 Na demonstração /conversas, perfil e conversas continuam locais a cada navegador; o celular conversa com o assistente de teste, sem sincronização com o computador. O código usa `crypto.getRandomValues` para IDs temporários e não depende de `crypto.randomUUID`, que exige contexto seguro e não está disponível normalmente por HTTP em um endereço da rede local.
 
@@ -40,7 +42,7 @@ Veja o [passo a passo de correção no Windows](docs/solucao-carregamento-window
 
 A configuração de desenvolvimento autoriza automaticamente os IPv4 da máquina e fixa a raiz do Turbopack na pasta do projeto. Não é necessário editar um IP pessoal no código. Reinicie o servidor se mudar de rede.
 
-## O que testar
+## O que testar no protótipo `/conversas`
 
 1. **Tema e login:** a tela contém somente a marca MenChat, o formulário e as ações de acesso de demonstração. A entrada tem animação discreta e respeita redução de movimento. Use sol/lua desde o login ou no menu do chat. A preferência é salva no navegador; sem preferência, segue o sistema.
 2. **Login e cadastro:** ambos são demonstrações, não autenticação. Para cadastrar um perfil fictício, preencha nome, e-mail, senha com pelo menos oito caracteres, confirmação e convite **AMIGOS20**. Não use sua senha real. E-mail e senha não são enviados nem armazenados.
@@ -81,7 +83,7 @@ Nas mensagens enviadas, clique na confirmação para abrir “Quem viu”. Em gr
 
 Para testar privacidade alheia: Ana mostra o código; Lucas oculta o código no perfil e não compartilha leitura; Júlia desabilitou a busca por código. Códigos fixos e essas preferências pertencem a contatos inteiramente fictícios.
 
-O fluxo de convite real está documentado em [Convites e privacidade](docs/convites-e-privacidade.md): uso único, validade, vínculo ao e-mail e uma verificação independente enviada ao e-mail ao aceitar. O link sozinho não deverá conceder acesso. AMIGOS20 permanece apenas um código de demonstração; essa segurança real ainda depende de Supabase Auth, banco de dados e RLS.
+O fluxo de convite real está documentado em [Convites e privacidade](docs/convites-e-privacidade.md): uso único, validade, vínculo ao e-mail e uma verificação independente enviada ao e-mail ao aceitar. O link sozinho não concede acesso no novo fluxo real: veja [a configuração de convites](docs/convites-pelo-aplicativo.md). AMIGOS20 permanece apenas um código de demonstração.
 
 ## Como as configurações se comportam
 
@@ -129,21 +131,21 @@ components/chat/       Lista, diálogos, mensagens, compositor e anexos
 components/            Perfil, formulários, tema e estado de demonstração
 lib/data/              Perfis e mensagens fictícios
 lib/                   Códigos, política de anexos e respostas automáticas
-lib/supabase/          Fábricas oficiais ainda inativas
+lib/supabase/          Clientes oficiais SSR, navegador e servidor administrativo
 types/                 Tipos compartilhados
 tests/                 Testes de regras e fluxos no navegador
 docs/                  Pesquisa de limites e preparação do armazenamento
 ```
 
-## Integração futura
+## Integração e limites
 
 O projeto começou com o template oficial [`with-supabase`](https://github.com/vercel/next.js/tree/canary/examples/with-supabase), commit `b0e1bf792f18c039933d8a9ce9d50d35f930f1be`. Stack: Next.js App Router, React, TypeScript, Tailwind e npm em Node.js 24.
 
-Não é necessário configurar Supabase para usar a demonstração. As rotas de demonstração não chamam Supabase; as rotas reais novas usam os clientes SSR em `lib/supabase/`. `.env.example` contém apenas os nomes de URL/chave publicável; os demais arquivos `.env*` são ignorados.
+Não é necessário configurar Supabase para usar a demonstração. As rotas de demonstração não chamam Supabase; as rotas reais novas usam os clientes SSR em `lib/supabase/`. `.env.example` contém nomes sem segredos, incluindo a chave administrativa exclusiva do servidor para convites; os demais arquivos `.env*` são ignorados.
 
-O convite AMIGOS20 valida somente o roteiro de demonstração: não protege rotas nem libera conta real. A liberação de usuários exige Supabase Auth com convites administrativos, limite de membros, unicidade de códigos no banco, autorização, RLS e armazenamento privado. Nada disso está ativo nesta versão. Nunca use `service_role`, secret keys ou credenciais administrativas em variáveis `NEXT_PUBLIC_`.
+O convite AMIGOS20 valida somente o roteiro de demonstração: não protege rotas nem libera conta real. A liberação de usuários exige Supabase Auth com convites administrativos, limite de membros, unicidade de códigos no banco, autorização, RLS e armazenamento privado. Auth, perfis, limite de contas, convites e texto privado são implementados nas migrações versionadas; armazenamento e grupos reais são posteriores. Nunca use `service_role`, secret keys ou credenciais administrativas em variáveis `NEXT_PUBLIC_`.
 
-Veja [anexos e limites da Cloudflare](docs/anexos-e-cloudflare.md). A política do aplicativo foi definida para os testes; nenhum serviço Cloudflare foi provisionado. PWA, chamadas, push com o app fechado, autenticação real e comunicação entre pessoas ficam para etapas futuras.
+Veja [anexos e limites da Cloudflare](docs/anexos-e-cloudflare.md). A política do aplicativo foi definida para os testes; nenhum serviço Cloudflare foi provisionado. PWA, chamadas, push com o app fechado e envio real de anexos ficam para etapas futuras.
 
 ### Emojis e figurinhas — demonstração
 
@@ -161,7 +163,7 @@ Na carinha ao lado do clipe, **Jogar bola de neve** envia um evento no privado o
 
 Na administração de grupos, **Remover** agora leva a confirmação para a área visível e coloca o foco nela. Confirme para concluir. Você só remove participantes conforme seu papel: em Família reunida você é admin, pode remover Lucas/Júlia e não pode remover Ana, criadora. Em Os de sempre você é membro comum. Crie um novo grupo para testar remoção como dono. O criador segue protegido.
 
-Veja o [passo a passo de Supabase, publicação HTTPS e instalação no celular](docs/integracao-e-celular.md). Primeiro, crie um projeto **de teste** no Supabase, mantenha cadastro público desativado e configure URL/chave publicável apenas no seu `.env.local`. Isso prepara a próxima entrega; ainda não ativa a integração real nesta versão.
+Veja o [passo a passo de Supabase, publicação HTTPS e instalação no celular](docs/integracao-e-celular.md). Primeiro, crie um projeto **de teste** no Supabase, mantenha cadastro público desativado e configure URL/chave publicável apenas no seu `.env.local`. Esse documento é o roteiro inicial; siga os guias abaixo para usar as rotas reais já implementadas.
 
 ## Primeira conexão com Supabase
 
@@ -169,16 +171,20 @@ Siga [o guia de conexão no Windows](docs/conectar-supabase.md) para configurar 
 
 ## Base inicial do banco
 
-Após confirmar `npm run supabase:check`, siga o [guia para aplicar a base pelo SQL Editor](docs/banco-inicial.md). A migração `supabase/migrations/20261104000100_initial_accounts.sql` cria perfis e registros internos de convite, com RLS, privilégios restritos, códigos automáticos e limite transacional de 20 contas ativas. `supabase/verify.sql` verifica a versão aplicada. A ativação de contas e do texto privado segue os guias abaixo; envio/aceite de convites pelo app ainda não está implementado.
+Após confirmar `npm run supabase:check`, siga o [guia para aplicar a base pelo SQL Editor](docs/banco-inicial.md). A migração `supabase/migrations/20261104000100_initial_accounts.sql` cria perfis e registros internos de convite, com RLS, privilégios restritos, códigos automáticos e limite transacional de 20 contas ativas. `supabase/verify.sql` verifica a versão aplicada. A ativação de contas e do texto privado segue os guias abaixo; envio/aceite de convites pelo app exige a migração 4 e a configuração descrita no novo guia.
 
 Para testar SQL localmente com um PostgreSQL descartável (Docker necessário), use `npm run test:db`. Nenhuma credencial Supabase é usada. O guia explica os testes e seus limites; arquivos de `supabase/tests/` nunca devem ser aplicados no projeto hospedado.
 
 ## Login real e primeiro administrador
 
-A base inicial foi confirmada pelo usuário. Siga [o primeiro acesso real](docs/primeiro-acesso-real.md) para aplicar a migração incremental de contagem, provisionar sua identidade Auth no painel, configurar o template de código e ativar seu perfil administrativo. Não há cadastro público, chave administrativa no app ou promoção automática do primeiro visitante.
+A base inicial foi confirmada pelo usuário. Siga [o primeiro acesso real](docs/primeiro-acesso-real.md) para aplicar a migração incremental de contagem, provisionar sua identidade Auth no painel, configurar o template de código e ativar seu perfil administrativo. Não há cadastro público nem promoção automática do primeiro visitante. A entrega posterior de convites usa uma chave administrativa apenas no servidor.
 
-Rotas novas: `/entrar` (login real), `/primeiro-acesso` (OTP e definição/redefinição de senha) e `/conta` (perfil real, protegido no servidor por sessão validada e RLS). As rotas anteriores continuam na demonstração. Texto privado está na entrega descrita abaixo; convites, grupos e mídia reais continuam posteriores. O guia separa validação local/simulada do teste necessário no Supabase hospedado.
+Rotas novas: `/entrar` (login real), `/primeiro-acesso` (OTP e definição/redefinição de senha) e `/conta` (perfil real, protegido no servidor por sessão validada e RLS). As rotas anteriores continuam na demonstração. Texto privado está na entrega descrita abaixo; convites são a nova entrega abaixo; grupos e mídia reais continuam posteriores. O guia separa validação local/simulada do teste necessário no Supabase hospedado.
 
 ## Texto privado com Supabase
 
 Siga [Conversas reais](docs/conversas-reais.md). Migração `20261104000300_private_chat`, rota protegida `/conta/chat`, busca por código, histórico paginado, envio persistente com UUID para repetição segura e Postgres Changes com RLS. Grupos e mídia reais continuam fora desta entrega. O ícone da marca recebeu um controle integrado ao balão; a proposta de logo gerada está em `public/brand/men-logo.png`.
+
+## Convites pelo MenChat
+
+Siga [o guia de configuração única e teste](docs/convites-pelo-aplicativo.md): migração `20261104000400_managed_invitations`, chave `SUPABASE_SECRET_KEY` somente no servidor, `MENCHAT_SITE_URL` e Redeploy. Administrador gera/revoga links em `/conta/convites`; amigo aceita em `/convite`, com e-mail vinculado e código independente. Reservas de convites contam no limite de 20; perfis existentes continuam válidos. Não execute novamente os scripts de primeiro administrador para convidar amigos.

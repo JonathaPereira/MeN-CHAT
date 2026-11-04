@@ -63,8 +63,14 @@ export default async function AccountPage({
       </dl>
       <p className="demo-note mt-6">
         Login e perfil reais. Conversas privadas estão disponíveis na nova área;
-        grupos, anexos e convites pelo aplicativo ficam para as próximas etapas.
+        convites podem ser gerenciados pelo administrador; grupos e anexos reais
+        ficam para as próximas etapas.
       </p>
+      {account.profile.app_role === "admin" && (
+        <Link href="/conta/convites" className="secondary-button mt-5 w-full">
+          Convidar pessoas
+        </Link>
+      )}
       <Link href="/conta/chat" className="primary-button mt-5 w-full">
         Abrir conversas reais
       </Link>

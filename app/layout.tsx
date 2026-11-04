@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: "%s · MenChat",
   },
   description:
-    "Um espaço para conversar com seus amigos e sua família. Protótipo visual.",
+    "Conversas privadas para amigos e família, com acesso exclusivo por convite.",
   robots: { index: false, follow: false },
 };
 
