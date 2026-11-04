@@ -17,6 +17,11 @@ test("conta real exige sessão e mantém resposta privada sem cache", async ({
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  await page.goto("/conta/chat");
+  await expect(page).toHaveURL(/\/entrar$/);
+  await expect(
+    page.getByRole("heading", { name: "Entrar na conta real", exact: true }),
+  ).toBeVisible();
 });
 
 test("acesso real e primeiro acesso ficam separados da demonstração", async ({

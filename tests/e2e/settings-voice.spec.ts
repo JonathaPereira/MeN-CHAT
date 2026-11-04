@@ -191,7 +191,14 @@ test("um clique inicia a gravação e ouvir antes de enviar é opcional", async 
   await page.goto("/conversas");
   await page.getByRole("button", { name: "Gravar mensagem de voz" }).click();
   await expect(page.getByRole("status")).toContainText("Gravando");
-  await expect(page.getByRole("status")).toContainText("0:01");
+  await expect
+    .poll(async () => {
+      const clock = (await page.getByRole("status").innerText()).match(
+        /(\d+):(\d+)/,
+      );
+      return clock ? Number(clock[1]) * 60 + Number(clock[2]) : 0;
+    })
+    .toBeGreaterThanOrEqual(1);
   await page.getByRole("button", { name: "Parar e ouvir" }).click();
   await expect(page.getByLabel("Ouvir gravação antes de enviar")).toBeVisible();
   await tracksEnded(page);
@@ -394,7 +401,14 @@ test("gravar e enviar exigem apenas dois cliques e não passam pelo fluxo de ane
   await trackMicrophone(page);
   await page.goto("/conversas");
   await page.getByRole("button", { name: "Gravar mensagem de voz" }).click();
-  await expect(page.getByRole("status")).toContainText("0:01");
+  await expect
+    .poll(async () => {
+      const clock = (await page.getByRole("status").innerText()).match(
+        /(\d+):(\d+)/,
+      );
+      return clock ? Number(clock[1]) * 60 + Number(clock[2]) : 0;
+    })
+    .toBeGreaterThanOrEqual(1);
   await page.getByRole("button", { name: "Enviar áudio", exact: true }).click();
   await expect(page.locator("[role=log] audio")).toBeVisible();
   await expect(

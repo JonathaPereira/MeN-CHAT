@@ -4,7 +4,7 @@
 
 - Aplicativo privado para até 20 amigos e familiares, exclusivamente por convite do administrador.
 - Trabalhe em etapas pequenas e verificáveis. Implemente apenas a etapa solicitada e pare ao concluí-la.
-- Etapa atual: interface de demonstração com respostas locais e início da integração Supabase. Conexão Auth/HTTP validada pelo usuário; base de perfis/convites versionada para aplicação no SQL Editor. Confirme o resultado de verify.sql antes de assumir que a migração foi aplicada. Login real em /entrar, primeiro acesso por OTP em /primeiro-acesso e perfil protegido em /conta estão implementados; verificar validação no Supabase hospedado com o usuário. Aceite de convites, mensagens persistentes e PWA ainda não estão ativos.
+- Etapa atual: interface de demonstração com respostas locais e início da integração Supabase. Conexão Auth/HTTP validada pelo usuário; base de perfis/convites versionada para aplicação no SQL Editor. Confirme o resultado de verify.sql antes de assumir que a migração foi aplicada. Login real em /entrar, primeiro acesso por OTP em /primeiro-acesso e perfil protegido em /conta estão implementados; verificar validação no Supabase hospedado com o usuário. Texto privado em /conta/chat implementado com migração 20261104000300_private_chat; validar publicação Realtime e duas contas no projeto hospedado com o usuário. Aceite de convites, grupos/mídia reais e PWA continuam posteriores.
 - Interface e textos em português do Brasil; marca atual MenChat. Login minimalista, somente marca/formulário/ações, com animação que respeita redução de movimento.
 
 ## Stack e organização
@@ -67,3 +67,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Cadastro público permanece bloqueado. OTP usa shouldCreateUser:false para identidades administrativamente provisionadas e confirmadas no Auth, sem criar perfil/ativar membros. Apenas após verificar o código o fluxo redefine a senha.
 - Primeiro administrador é escolhido manualmente pelo proprietário no SQL Editor (setup-owner.sql), após o OTP independente. Auto Confirm do painel é provisão administrativa, não prova de posse do e-mail; não confundir isso com verificação de convite. Não promover primeiro visitante nem expor endpoint de bootstrap público.
 - Migrações aplicadas são imutáveis. 20261104000200_profile_accounting corrige a contagem para AFTER e repara divergências anteriores de upsert. Executar test:db ao alterar SQL, incluindo repetição e concorrência.
+
+## Texto privado real
+
+- `/conta/chat` usa sessão validada e RLS; `/conversas` continua demo. Não confundir canal “Ao vivo” com presença de usuários.
+- Migração 20261104000300_private_chat: exatamente dois participantes fixos, somente texto, sem edição/exclusão; admins não leem privados alheios. Manter limites de busca no banco e idempotência dos envios.
+- Grupos/mídia/presença/recibos/convites reais continuam posteriores. Testar no Postgres e em duas contas hospedadas antes de anunciar entrega ao vivo validada.

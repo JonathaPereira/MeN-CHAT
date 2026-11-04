@@ -106,6 +106,24 @@ try {
       "utf8",
     ),
   );
+  await sql(
+    await readFile(
+      new URL(
+        "../supabase/migrations/20261104000300_private_chat.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await sql(
+    await readFile(
+      new URL("../supabase/tests/private-chat.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  console.log(
+    "PASS: privados, autores, admin externo, conta desativada, privacidade e limite de busca.",
+  );
   assert.equal(
     await sql("select active_profiles from menchat_private.app_state;"),
     "1",
@@ -145,7 +163,7 @@ try {
   await assert.rejects(sql(migration));
   assert.equal(
     await sql("select count(*) from menchat_private.schema_migrations;"),
-    "2",
+    "3",
   );
   console.log("PASS: reaplicação não altera o esquema existente.");
   const ownerScript = (

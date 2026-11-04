@@ -1,6 +1,6 @@
 # MenChat
 
-Um espaço para até 20 amigos e familiares, com acesso futuro exclusivamente por convite. Você pode testar a interface com um assistente automático local e configurar o primeiro acesso real com Supabase em /entrar. As conversas ainda são demonstração; mensagens entre contas reais e convites pelo aplicativo serão entregas seguintes.
+Um espaço para até 20 amigos e familiares, com acesso futuro exclusivamente por convite. Você pode testar a interface com um assistente automático local e configurar o primeiro acesso real com Supabase em /entrar. O chat /conversas é demonstração; /conta/chat implementa texto privado real após configurar o Supabase e aplicar a migração do chat. Convites pelo aplicativo, grupos e mídia reais ficam para as próximas entregas.
 
 ## Abrir no Windows
 
@@ -32,7 +32,7 @@ Em Linux/macOS, com Node.js 24, use `npm ci` e `npm run dev`. `.nvmrc` fixa a ve
 
 O endereço `localhost` no celular aponta para o próprio celular; use o IPv4 do Windows. O acesso acima serve para testar na rede local. Não configure redirecionamento de portas no roteador. Para acessar fora do Wi-Fi, será necessário hospedar uma versão de demonstração, o que ainda não foi feito.
 
-Perfil e conversas continuam locais a cada navegador; o celular conversa com o assistente de teste, sem sincronização com o computador. O código usa `crypto.getRandomValues` para IDs temporários e não depende de `crypto.randomUUID`, que exige contexto seguro e não está disponível normalmente por HTTP em um endereço da rede local.
+Na demonstração /conversas, perfil e conversas continuam locais a cada navegador; o celular conversa com o assistente de teste, sem sincronização com o computador. O código usa `crypto.getRandomValues` para IDs temporários e não depende de `crypto.randomUUID`, que exige contexto seguro e não está disponível normalmente por HTTP em um endereço da rede local.
 
 ## Se ficar carregando ou os botões não responderem
 
@@ -53,7 +53,7 @@ A configuração de desenvolvimento autoriza automaticamente os IPv4 da máquina
 9. **Configurações:** clique na engrenagem visível no cabeçalho do chat ou da lista. Os submenus são Privacidade, Notificações, Dados e armazenamento, Conversas e voz e Aparência. As preferências são locais ao navegador e valem para a mesma interface web em computador e celular.
 10. **Responsividade:** experimente janela estreita, tema escuro, mensagens longas, Shift+Enter para quebra de linha, grupos e anexos. No desktop, a lista permanece visível; no celular, use a seta do cabeçalho para voltar à lista. Escape ou o botão de fechar recolhe os menus adicionais. O botão de anexar usa somente o clipe, com rótulo acessível. O campo de mensagem foi ampliado, mantendo os controles visíveis.
 
-Conversas, grupos, mensagens e anexos existem somente na memória desta aba e desaparecem ao recarregar. Preferências, nome, status, foto e código do perfil persistem no armazenamento local desse navegador. Para apagar esse perfil de teste, limpe os dados do site nas configurações do navegador. Tema, perfil e preferências são compartilhados entre abas deste navegador; não há sincronização de mensagens.
+Na demonstração, conversas, grupos, mensagens e anexos existem somente na memória desta aba e desaparecem ao recarregar. Preferências, nome, status, foto e código do perfil persistem no armazenamento local desse navegador. Para apagar esse perfil de teste, limpe os dados do site nas configurações do navegador. Tema, perfil e preferências são compartilhados entre abas deste navegador; não há sincronização de mensagens.
 
 ## Administração de grupos — demonstração
 
@@ -165,11 +165,11 @@ Veja o [passo a passo de Supabase, publicação HTTPS e instalação no celular]
 
 ## Primeira conexão com Supabase
 
-Siga [o guia de conexão no Windows](docs/conectar-supabase.md) para configurar `.env.local` e executar `npm run supabase:check`. O comando testa acesso ao serviço Auth e bloqueio de cadastro público, sem criar dados. Login, esquema do banco e mensagens reais ainda serão implementados nas entregas seguintes.
+Siga [o guia de conexão no Windows](docs/conectar-supabase.md) para configurar `.env.local` e executar `npm run supabase:check`. O comando testa acesso ao serviço Auth e bloqueio de cadastro público, sem criar dados. Depois siga os guias de banco, primeiro acesso e conversas reais abaixo.
 
 ## Base inicial do banco
 
-Após confirmar `npm run supabase:check`, siga o [guia para aplicar a base pelo SQL Editor](docs/banco-inicial.md). A migração `supabase/migrations/20261104000100_initial_accounts.sql` cria perfis e registros internos de convite, com RLS, privilégios restritos, códigos automáticos e limite transacional de 20 contas ativas. `supabase/verify.sql` verifica a versão aplicada. Login, OTP, envio/aceite de convites e mensagens reais ainda não foram ativados.
+Após confirmar `npm run supabase:check`, siga o [guia para aplicar a base pelo SQL Editor](docs/banco-inicial.md). A migração `supabase/migrations/20261104000100_initial_accounts.sql` cria perfis e registros internos de convite, com RLS, privilégios restritos, códigos automáticos e limite transacional de 20 contas ativas. `supabase/verify.sql` verifica a versão aplicada. A ativação de contas e do texto privado segue os guias abaixo; envio/aceite de convites pelo app ainda não está implementado.
 
 Para testar SQL localmente com um PostgreSQL descartável (Docker necessário), use `npm run test:db`. Nenhuma credencial Supabase é usada. O guia explica os testes e seus limites; arquivos de `supabase/tests/` nunca devem ser aplicados no projeto hospedado.
 
@@ -177,4 +177,8 @@ Para testar SQL localmente com um PostgreSQL descartável (Docker necessário), 
 
 A base inicial foi confirmada pelo usuário. Siga [o primeiro acesso real](docs/primeiro-acesso-real.md) para aplicar a migração incremental de contagem, provisionar sua identidade Auth no painel, configurar o template de código e ativar seu perfil administrativo. Não há cadastro público, chave administrativa no app ou promoção automática do primeiro visitante.
 
-Rotas novas: `/entrar` (login real), `/primeiro-acesso` (OTP e definição/redefinição de senha) e `/conta` (perfil real, protegido no servidor por sessão validada e RLS). As rotas anteriores continuam na demonstração. Mensagens, convites e grupos reais serão etapas seguintes. O guia separa validação local/simulada do teste necessário no Supabase hospedado.
+Rotas novas: `/entrar` (login real), `/primeiro-acesso` (OTP e definição/redefinição de senha) e `/conta` (perfil real, protegido no servidor por sessão validada e RLS). As rotas anteriores continuam na demonstração. Texto privado está na entrega descrita abaixo; convites, grupos e mídia reais continuam posteriores. O guia separa validação local/simulada do teste necessário no Supabase hospedado.
+
+## Texto privado com Supabase
+
+Siga [Conversas reais](docs/conversas-reais.md). Migração `20261104000300_private_chat`, rota protegida `/conta/chat`, busca por código, histórico paginado, envio persistente com UUID para repetição segura e Postgres Changes com RLS. Grupos e mídia reais continuam fora desta entrega. O ícone da marca recebeu um controle integrado ao balão; a proposta de logo gerada está em `public/brand/men-logo.png`.

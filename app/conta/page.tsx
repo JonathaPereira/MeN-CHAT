@@ -62,9 +62,12 @@ export default async function AccountPage({
         </div>
       </dl>
       <p className="demo-note mt-6">
-        Login e perfil reais. Conversas entre pessoas e convites pelo aplicativo
-        serão conectados nas próximas etapas.
+        Login e perfil reais. Conversas privadas estão disponíveis na nova área;
+        grupos, anexos e convites pelo aplicativo ficam para as próximas etapas.
       </p>
+      <Link href="/conta/chat" className="primary-button mt-5 w-full">
+        Abrir conversas reais
+      </Link>
       <form action={signOut}>
         <button className="secondary-button mt-5 w-full" type="submit">
           Sair deste aparelho
