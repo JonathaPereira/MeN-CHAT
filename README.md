@@ -162,3 +162,7 @@ Na carinha ao lado do clipe, **Jogar bola de neve** envia um evento no privado o
 Na administração de grupos, **Remover** agora leva a confirmação para a área visível e coloca o foco nela. Confirme para concluir. Você só remove participantes conforme seu papel: em Família reunida você é admin, pode remover Lucas/Júlia e não pode remover Ana, criadora. Em Os de sempre você é membro comum. Crie um novo grupo para testar remoção como dono. O criador segue protegido.
 
 Veja o [passo a passo de Supabase, publicação HTTPS e instalação no celular](docs/integracao-e-celular.md). Primeiro, crie um projeto **de teste** no Supabase, mantenha cadastro público desativado e configure URL/chave publicável apenas no seu `.env.local`. Isso prepara a próxima entrega; ainda não ativa a integração real nesta versão.
+
+## Primeira conexão com Supabase
+
+Siga [o guia de conexão no Windows](docs/conectar-supabase.md) para configurar `.env.local` e executar `npm run supabase:check`. O comando testa acesso ao serviço Auth e bloqueio de cadastro público, sem criar dados. Login, esquema do banco e mensagens reais ainda serão implementados nas entregas seguintes.

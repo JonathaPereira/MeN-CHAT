@@ -14,7 +14,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
     "test:e2e": "npm run build && playwright test",
-    "test:dev": "playwright test --config=playwright.dev.config.ts"
+    "test:dev": "playwright test --config=playwright.dev.config.ts",
+    "supabase:check": "node scripts/check-supabase.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
