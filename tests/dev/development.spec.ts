@@ -96,7 +96,7 @@ test("rotas reais usam proxy e exigem sessão também em desenvolvimento", async
   const response = await page.goto("/conta");
   await expect(page).toHaveURL(/\/entrar$/);
   await expect(
-    page.getByRole("heading", { name: "Entrar na conta real", exact: true }),
+    page.getByRole("heading", { name: "Entrar", exact: true }),
   ).toBeVisible();
   expect(response?.headers()["cache-control"]).toContain("no-store");
   const inviteAdmin = await page.goto("/conta/convites");

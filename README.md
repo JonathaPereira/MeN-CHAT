@@ -2,7 +2,7 @@
 
 Um espaço privado para até 20 amigos e familiares, exclusivamente por convite. Login real em `/entrar`, conta em `/conta`, texto privado em `/conta/chat` e administração de convites em `/conta/convites`. A entrada `/` abre o login real. O protótipo com assistente automático permanece em `/login` e `/conversas`.
 
-**Nova entrega:** [configurar convites automáticos](docs/convites-pelo-aplicativo.md), com vínculo ao e-mail, OTP independente, uso único, validade e revogação. O administrador deixa de ativar cada amigo no painel após a configuração única. [Etapas de qualidade, funcionalidade e distribuição](docs/etapas-avancadas.md) definem a continuação; grupos, anexos, digitação e recibos reais ainda são posteriores.
+**Nova entrega:** [interface, grupos, arquivos, voz e perfil reais](docs/chat-completo.md), com teste solo sem convidar ninguém. Aplicar a migração 5 e conferir o verificador para ativar no seu projeto. [Convites automáticos](docs/convites-pelo-aplicativo.md) permanecem disponíveis ao administrador para quando decidir distribuir. [Roteiro de qualidade e distribuição](docs/etapas-avancadas.md).
 
 ## Abrir no Windows
 
@@ -143,9 +143,9 @@ O projeto começou com o template oficial [`with-supabase`](https://github.com/v
 
 Não é necessário configurar Supabase para usar a demonstração. As rotas de demonstração não chamam Supabase; as rotas reais novas usam os clientes SSR em `lib/supabase/`. `.env.example` contém nomes sem segredos, incluindo a chave administrativa exclusiva do servidor para convites; os demais arquivos `.env*` são ignorados.
 
-O convite AMIGOS20 valida somente o roteiro de demonstração: não protege rotas nem libera conta real. A liberação de usuários exige Supabase Auth com convites administrativos, limite de membros, unicidade de códigos no banco, autorização, RLS e armazenamento privado. Auth, perfis, limite de contas, convites e texto privado são implementados nas migrações versionadas; armazenamento e grupos reais são posteriores. Nunca use `service_role`, secret keys ou credenciais administrativas em variáveis `NEXT_PUBLIC_`.
+O convite AMIGOS20 valida somente o roteiro de demonstração: não protege rotas nem libera conta real. A liberação de usuários exige Supabase Auth com convites administrativos, limite de membros, unicidade de códigos no banco, autorização, RLS e armazenamento privado. Auth, perfis, limite de contas, convites e texto privado são implementados nas migrações versionadas; armazenamento privado e grupos reais usam a migração 5. Nunca use `service_role`, secret keys ou credenciais administrativas em variáveis `NEXT_PUBLIC_`.
 
-Veja [anexos e limites da Cloudflare](docs/anexos-e-cloudflare.md). A política do aplicativo foi definida para os testes; nenhum serviço Cloudflare foi provisionado. PWA, chamadas, push com o app fechado e envio real de anexos ficam para etapas futuras.
+Veja [anexos e limites da Cloudflare](docs/anexos-e-cloudflare.md). A política do aplicativo foi definida para os testes; nenhum serviço Cloudflare foi provisionado. PWA, chamadas, push com o app fechado e distribuição ampliada ficam para etapas futuras.
 
 ### Emojis e figurinhas — demonstração
 
@@ -179,7 +179,7 @@ Para testar SQL localmente com um PostgreSQL descartável (Docker necessário), 
 
 A base inicial foi confirmada pelo usuário. Siga [o primeiro acesso real](docs/primeiro-acesso-real.md) para aplicar a migração incremental de contagem, provisionar sua identidade Auth no painel, configurar o template de código e ativar seu perfil administrativo. Não há cadastro público nem promoção automática do primeiro visitante. A entrega posterior de convites usa uma chave administrativa apenas no servidor.
 
-Rotas novas: `/entrar` (login real), `/primeiro-acesso` (OTP e definição/redefinição de senha) e `/conta` (perfil real, protegido no servidor por sessão validada e RLS). As rotas anteriores continuam na demonstração. Texto privado está na entrega descrita abaixo; convites são a nova entrega abaixo; grupos e mídia reais continuam posteriores. O guia separa validação local/simulada do teste necessário no Supabase hospedado.
+Rotas novas: `/entrar` (login real), `/primeiro-acesso` (OTP e definição/redefinição de senha) e `/conta` (perfil real, protegido no servidor por sessão validada e RLS). As rotas anteriores continuam na demonstração. Texto privado está na entrega descrita abaixo; convites são a nova entrega abaixo; grupos e mídia reais seguem a entrega da migração 5. O guia separa validação local/simulada do teste necessário no Supabase hospedado.
 
 ## Texto privado com Supabase
 
@@ -188,3 +188,7 @@ Siga [Conversas reais](docs/conversas-reais.md). Migração `20261104000300_priv
 ## Convites pelo MenChat
 
 Siga [o guia de configuração única e teste](docs/convites-pelo-aplicativo.md): migração `20261104000400_managed_invitations`, chave `SUPABASE_SECRET_KEY` somente no servidor, `MENCHAT_SITE_URL` e Redeploy. Administrador gera/revoga links em `/conta/convites`; amigo aceita em `/convite`, com e-mail vinculado e código independente. Reservas de convites contam no limite de 20; perfis existentes continuam válidos. Não execute novamente os scripts de primeiro administrador para convidar amigos.
+
+## Experiência completa antes dos convites
+
+A migração `20261104000500_complete_chat` conecta grupos, mídia privada, mensagens de voz, perfil e indicadores à interface em `/conta/chat`. Perfil em `/conta/perfil`, preferências em `/conta/configuracoes`. [Ativação e teste sem outras pessoas](docs/chat-completo.md). Os testes da UI real usam `npm run test:real-ui`, com serviços fictícios em processo separado; não substituem o teste do seu Supabase.

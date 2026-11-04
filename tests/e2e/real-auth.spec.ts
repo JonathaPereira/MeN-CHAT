@@ -6,7 +6,7 @@ test("conta real exige sessão e mantém resposta privada sem cache", async ({
   const response = await page.goto("/conta");
   await expect(page).toHaveURL(/\/entrar$/);
   await expect(
-    page.getByRole("heading", { name: "Entrar na conta real", exact: true }),
+    page.getByRole("heading", { name: "Entrar", exact: true }),
   ).toBeVisible();
   expect(response?.headers()["cache-control"]).toContain("no-store");
   await expect(
@@ -20,7 +20,7 @@ test("conta real exige sessão e mantém resposta privada sem cache", async ({
   await page.goto("/conta/chat");
   await expect(page).toHaveURL(/\/entrar$/);
   await expect(
-    page.getByRole("heading", { name: "Entrar na conta real", exact: true }),
+    page.getByRole("heading", { name: "Entrar", exact: true }),
   ).toBeVisible();
 });
 

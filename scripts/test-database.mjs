@@ -124,6 +124,31 @@ try {
       "utf8",
     ),
   );
+  await sql(
+    await readFile(
+      new URL(
+        "../supabase/migrations/20261104000500_complete_chat.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await sql(
+    await readFile(
+      new URL("../supabase/tests/complete-chat.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.match(
+    await sql(
+      await readFile(
+        new URL("../supabase/verify-complete-chat.sql", import.meta.url),
+        "utf8",
+      ),
+    ),
+    /CHAT_COMPLETO_OK/,
+  );
+  console.log("PASS: grupos, mídia privada, limites, perfil e indicadores.");
   assert.match(
     await sql(
       await readFile(
@@ -190,7 +215,7 @@ try {
   await assert.rejects(sql(migration));
   assert.equal(
     await sql("select count(*) from menchat_private.schema_migrations;"),
-    "4",
+    "5",
   );
   console.log("PASS: reaplicação não altera o esquema existente.");
   const ownerScript = (
@@ -329,6 +354,66 @@ try {
   );
   console.log(
     "PASS: 21 contas pendentes ativadas simultaneamente respeitam a mesma cota.",
+  );
+  await sql(
+    "delete from auth.users; insert into auth.users(id) select ('80000000-0000-0000-0000-'||lpad(i::text,12,'0'))::uuid from generate_series(1,21) i; insert into public.menchat_profiles(id,display_name) select id,'Corrida de grupos' from auth.users; update public.menchat_profiles set account_status='active' where right(id::text,12)::integer<=20;",
+  );
+  const ownerId = "80000000-0000-0000-0000-000000000001";
+  const codes = await sql(
+    "select string_agg(quote_literal(user_code),',') from public.menchat_profiles where right(id::text,12)::integer between 2 and 19;",
+  );
+  const creation = await sql(
+    `select set_config('request.jwt.claim.sub','${ownerId}',false); set role authenticated; select public.menchat_create_group('Última vaga',array[${codes}]);`,
+  );
+  const group = creation.split("\n").at(-1);
+  assert.match(group, /^[0-9a-f-]{36}$/);
+  await sql(
+    "update public.menchat_profiles set account_status='disabled' where id='80000000-0000-0000-0000-000000000019'; update public.menchat_profiles set account_status='active' where id='80000000-0000-0000-0000-000000000021';",
+  );
+  const joins = await Promise.allSettled(
+    [20, 21].map(async (i) => {
+      const code = await sql(
+        `select user_code from public.menchat_profiles where id=('80000000-0000-0000-0000-'||lpad('${i}',12,'0'))::uuid;`,
+      );
+      return sql(
+        `select set_config('request.jwt.claim.sub','${ownerId}',false); set role authenticated; select public.menchat_manage_group('${group}','add',null,'${code}');`,
+      );
+    }),
+  );
+  assert.equal(joins.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(
+    await sql(
+      `select count(*) from public.menchat_group_members where thread_id='${group}' and active;`,
+    ),
+    "20",
+  );
+  for (let i = 0; i < 3; i++) {
+    const reservation = await sql(
+      `select set_config('request.jwt.claim.sub','${ownerId}',false); set role authenticated; select id::text||'|'||path from public.menchat_reserve_upload('${group}','race.png','image/png',100);`,
+    );
+    const [uploadId, path] = reservation.split("\n").at(-1).split("|");
+    await sql(
+      `select set_config('request.jwt.claim.sub','${ownerId}',false); set role authenticated; insert into storage.objects(bucket_id,name,metadata) values('menchat-media','${path}','{"size":100,"mimetype":"image/png"}');`,
+    );
+    const messageId = randomUUID();
+    const operations = await Promise.allSettled([
+      sql(
+        `begin; select set_config('request.jwt.claim.sub','${ownerId}',true); set local role authenticated; select public.menchat_send_upload('${messageId}','${uploadId}','Corrida'); select pg_sleep(0.1); commit;`,
+      ),
+      sql(
+        `begin; select set_config('request.jwt.claim.sub','${ownerId}',true); set local role authenticated; delete from storage.objects where bucket_id='menchat-media' and name='${path}'; select pg_sleep(0.1); commit;`,
+      ),
+    ]);
+    assert.ok(operations.some((r) => r.status === "fulfilled"));
+    assert.equal(
+      await sql(
+        `select count(*) from public.menchat_messages m where m.id='${messageId}' and not exists(select 1 from storage.objects o where o.name='${path}' and o.bucket_id='menchat-media');`,
+      ),
+      "0",
+    );
+  }
+  console.log(
+    "PASS: última vaga de grupo e publicação/descarte concorrentes preservam limite e arquivos publicados.",
   );
 } catch (error) {
   console.error(

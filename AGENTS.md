@@ -4,7 +4,7 @@
 
 - Aplicativo privado para até 20 amigos e familiares, exclusivamente por convite do administrador.
 - Trabalhe em etapas pequenas e verificáveis. Implemente apenas a etapa solicitada e pare ao concluí-la.
-- Etapa atual: interface de demonstração com respostas locais e início da integração Supabase. Conexão Auth/HTTP validada pelo usuário; base de perfis/convites versionada para aplicação no SQL Editor. Confirme o resultado de verify.sql antes de assumir que a migração foi aplicada. Login real em /entrar, primeiro acesso por OTP em /primeiro-acesso e perfil protegido em /conta estão implementados; verificar validação no Supabase hospedado com o usuário. Texto privado em /conta/chat implementado com migração 20261104000300_private_chat; validar publicação Realtime e duas contas no projeto hospedado com o usuário. Convites pelo aplicativo implementados na migração 4 e em /conta/convites e /convite; validar Auth/AMR/SMTP hospedados após a configuração única. Grupos/mídia reais e PWA continuam posteriores.
+- Etapa atual: interface de demonstração com respostas locais e início da integração Supabase. Conexão Auth/HTTP validada pelo usuário; base de perfis/convites versionada para aplicação no SQL Editor. Confirme o resultado de verify.sql antes de assumir que a migração foi aplicada. Login real em /entrar, primeiro acesso por OTP em /primeiro-acesso e perfil protegido em /conta estão implementados; verificar validação no Supabase hospedado com o usuário. Texto privado em /conta/chat implementado com migração 20261104000300_private_chat; validar publicação Realtime e duas contas no projeto hospedado com o usuário. Convites pelo aplicativo implementados na migração 4 e em /conta/convites e /convite; validar Auth/AMR/SMTP hospedados após a configuração única. Migração 5 implementa grupos/mídia/perfil/indicadores reais; validar Storage/Auth hospedados com teste solo antes de convidar pessoas. PWA é posterior.
 - Interface e textos em português do Brasil; marca atual MenChat. Login minimalista, somente marca/formulário/ações, com animação que respeita redução de movimento.
 
 ## Stack e organização
@@ -20,7 +20,7 @@
 - Cadastro real permanece exclusivo por convite. `/cadastro` cria apenas perfil local de demonstração, com convite de teste AMIGOS20. Não transforme isso em controle de acesso real.
 - Não registre senhas, tokens ou dados de formulário. Não grave segredos no repositório.
 - Somente URL e chave publicável do Supabase podem usar `NEXT_PUBLIC_`. Chaves administrativas/secretas nunca podem estar no cliente.
-- A integração Auth/SSR foi autorizada para as rotas reais novas. Preserve renovação de sessão no servidor, validação de identidade e RLS. Texto privado e convites operacionais são autorizados; grupos/mídia/PWA permanecem posteriores.
+- A integração Auth/SSR foi autorizada para as rotas reais novas. Preserve renovação de sessão no servidor, validação de identidade e RLS. Texto privado e convites operacionais são autorizados; a etapa de grupos/mídia/perfil foi autorizada; PWA é posterior.
 - /login, /cadastro, /perfil, /conversas e /configuracoes são demonstrações públicas; /conta é protegida no servidor por identidade validada e perfil ativo. Perfil, tema e preferências ficam no armazenamento local, sem e-mail ou senha; mensagens, grupos e anexos são temporários na memória da aba. Respostas automáticas devem ser identificadas como simulação. Não prometa segurança, privacidade operacional ou criptografia ponta a ponta ainda não implementadas.
 
 ## Interface e validação
@@ -72,7 +72,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - `/conta/chat` usa sessão validada e RLS; `/conversas` continua demo. Não confundir canal “Ao vivo” com presença de usuários.
 - Migração 20261104000300_private_chat: exatamente dois participantes fixos, somente texto, sem edição/exclusão; admins não leem privados alheios. Manter limites de busca no banco e idempotência dos envios.
-- Grupos/mídia/presença/recibos reais continuam posteriores. Testar no Postgres e em duas contas hospedadas antes de anunciar entrega ao vivo validada.
+- Grupos/mídia/recibos reais usam a migração 5; não afirmar presença online contínua. Testar no Postgres e em duas contas hospedadas antes de anunciar entrega ao vivo validada.
 
 ## Convites operacionais e próximas etapas
 
@@ -81,3 +81,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `SUPABASE_SECRET_KEY` somente em módulo `server-only`, sem `NEXT_PUBLIC_`; validar administrador na Action antes de usar Admin API e novamente na RPC de mutação. Preparo limitado a 30 tentativas/admin/hora antes do provisionamento Auth. Contas antigas não confirmadas não são promovidas automaticamente.
 - Link usa fragmento; token sai do endereço após leitura e fica na memória da página, nunca em logs/storage do app. Banco guarda só SHA-256, mas aceite exige token original, não seu hash. Não transmitir segredo administrativo para o cliente.
 - Auth e banco não são uma transação: falha/revogação após OTP não pode conceder perfil ativo; não apagar automaticamente identidades após falhas ambíguas. Testar concorrência e negação para membro/anônimo, JWT sem OTP recente, e-mail divergente, expiração, revogação e repetição.
+
+## Experiência real completa — migração 5
+
+- O usuário quer concluir visual, grupos, anexos, voz e perfil antes de convidar novas pessoas. Não condicionar o teste solo a convites; grupos podem ter apenas o criador.
+- Guia `docs/chat-completo.md`. Migração 5 é incremental; não alterar migrações publicadas. Bucket privado, reserva no banco, confirmação do objeto antes de publicar, upload sem sobrescrita; exclusão/publicação e saída/envio concorrentes devem preservar integridade.
+- Limites: foto 5 MB, vídeo 25 MB, áudio/documento 10 MB; uma mídia por mensagem. Avatar 256 px/200 KB após normalizar foto original até 2 MB. Reserva 100 MB/pessoa/dia, cinco pendentes/hora e 500 MB globais. URLs assinadas expiram em 5 minutos; documentar janela de revogação e necessidade de limpeza de órfãos.
+- Membros saídos/removidos perdem histórico e mídia; entrada/readmissão permite histórico completo. Criador imutável, dono transfere antes de sair com outros membros, admins do app não têm leitura global.
+- Digitação/recibos vêm do banco com preferências reais; expiração 6 s, consulta 3 s. Marcar leitura somente com aba focada/visível e fim do histórico. Não confundir gravado no servidor com recebido/lido. Confirmações consideram participantes atuais.
+- `test:real-ui` usa processo/domínio falsos exclusivos de teste, sem bypass no app. Não usar mocks para afirmar sucesso do Supabase hospedado. Executar suítes de navegador sequencialmente, pois dois next dev do checkout compartilham saída.

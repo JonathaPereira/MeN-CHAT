@@ -61,11 +61,6 @@ export default async function AccountPage({
           </dd>
         </div>
       </dl>
-      <p className="demo-note mt-6">
-        Login e perfil reais. Conversas privadas estão disponíveis na nova área;
-        convites podem ser gerenciados pelo administrador; grupos e anexos reais
-        ficam para as próximas etapas.
-      </p>
       {account.profile.app_role === "admin" && (
         <Link href="/conta/convites" className="secondary-button mt-5 w-full">
           Convidar pessoas
@@ -74,17 +69,20 @@ export default async function AccountPage({
       <Link href="/conta/chat" className="primary-button mt-5 w-full">
         Abrir conversas reais
       </Link>
+      <Link href="/conta/perfil" className="secondary-button mt-4 w-full">
+        Editar perfil
+      </Link>
+      <Link
+        href="/conta/configuracoes"
+        className="secondary-button mt-3 w-full"
+      >
+        Configurações
+      </Link>
       <form action={signOut}>
         <button className="secondary-button mt-5 w-full" type="submit">
           Sair deste aparelho
         </button>
       </form>
-      <Link
-        href="/conversas"
-        className="mt-5 block text-center text-xs text-[var(--muted)]"
-      >
-        Abrir chat de demonstração (dados fictícios)
-      </Link>
     </AuthShell>
   );
 }

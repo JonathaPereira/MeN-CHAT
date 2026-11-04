@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { AuthShell } from "@/components/auth-shell";
 import { RealLoginForm } from "@/components/auth/real-auth-forms";
 import { getAccount } from "@/lib/auth/account";
@@ -14,10 +13,10 @@ export default async function RealLoginPage({
   const exitFailed = (await searchParams).saida === "erro";
   const account = await getAccount();
   if (account.kind === "active")
-    redirect(exitFailed ? "/conta?saida=erro" : "/conta");
+    redirect(exitFailed ? "/conta?saida=erro" : "/conta/chat");
   return (
     <AuthShell>
-      <h1 className="mt-5 text-xl font-semibold">Entrar na conta real</h1>
+      <h1 className="mt-5 text-xl font-semibold">Entrar</h1>
       {account.kind === "configuration" && (
         <p role="alert" className="demo-note mt-4">
           Configure a URL e a chave publicável em .env.local e reinicie o
@@ -37,12 +36,6 @@ export default async function RealLoginPage({
         </p>
       )}
       <RealLoginForm disabled={account.kind === "configuration"} />
-      <Link
-        href="/login"
-        className="mt-5 block text-center text-xs text-[var(--muted)]"
-      >
-        Abrir demonstração local
-      </Link>
     </AuthShell>
   );
 }

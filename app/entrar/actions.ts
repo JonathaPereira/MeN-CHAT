@@ -38,7 +38,7 @@ export async function signIn(
     return unavailable;
   }
   if (result.error) return result;
-  redirect("/conta");
+  redirect("/conta/chat");
 }
 export async function sendCode(
   _previous: AuthResult,

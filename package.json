@@ -16,7 +16,8 @@
     "test:e2e": "npm run build && playwright test",
     "test:dev": "playwright test --config=playwright.dev.config.ts",
     "supabase:check": "node scripts/check-supabase.mjs",
-    "test:db": "node scripts/test-database.mjs"
+    "test:db": "node scripts/test-database.mjs",
+    "test:real-ui": "playwright test --config=playwright.real.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

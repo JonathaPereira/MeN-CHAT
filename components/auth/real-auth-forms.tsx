@@ -61,7 +61,7 @@ export function RealLoginForm({ disabled }: { disabled: boolean }) {
         Primeiro acesso ou redefinir senha
       </Link>
       <p className="text-center text-xs text-[var(--muted)]">
-        Acesso exclusivo a contas preparadas pelo administrador.
+        Acesso exclusivo para convidados.
       </p>
     </form>
   );
