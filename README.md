@@ -166,3 +166,9 @@ Veja o [passo a passo de Supabase, publicação HTTPS e instalação no celular]
 ## Primeira conexão com Supabase
 
 Siga [o guia de conexão no Windows](docs/conectar-supabase.md) para configurar `.env.local` e executar `npm run supabase:check`. O comando testa acesso ao serviço Auth e bloqueio de cadastro público, sem criar dados. Login, esquema do banco e mensagens reais ainda serão implementados nas entregas seguintes.
+
+## Base inicial do banco
+
+Após confirmar `npm run supabase:check`, siga o [guia para aplicar a base pelo SQL Editor](docs/banco-inicial.md). A migração `supabase/migrations/20261104000100_initial_accounts.sql` cria perfis e registros internos de convite, com RLS, privilégios restritos, códigos automáticos e limite transacional de 20 contas ativas. `supabase/verify.sql` verifica a versão aplicada. Login, OTP, envio/aceite de convites e mensagens reais ainda não foram ativados.
+
+Para testar SQL localmente com um PostgreSQL descartável (Docker necessário), use `npm run test:db`. Nenhuma credencial Supabase é usada. O guia explica os testes e seus limites; arquivos de `supabase/tests/` nunca devem ser aplicados no projeto hospedado.

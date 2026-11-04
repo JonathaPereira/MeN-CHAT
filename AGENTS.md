@@ -4,7 +4,7 @@
 
 - Aplicativo privado para até 20 amigos e familiares, exclusivamente por convite do administrador.
 - Trabalhe em etapas pequenas e verificáveis. Implemente apenas a etapa solicitada e pare ao concluí-la.
-- Etapa atual: demonstração interativa com respostas automáticas locais. O usuário confirmou que quer testar telas e responsividade antes de liberar para pessoas reais. Não há autenticação real, convites reais, banco de dados ou PWA.
+- Etapa atual: interface de demonstração com respostas locais e início da integração Supabase. Conexão Auth/HTTP validada pelo usuário; base de perfis/convites versionada para aplicação no SQL Editor. Confirme o resultado de verify.sql antes de assumir que a migração foi aplicada. Login real, aceite de convites, mensagens persistentes e PWA ainda não estão ativos.
 - Interface e textos em português do Brasil; marca atual MenChat. Login minimalista, somente marca/formulário/ações, com animação que respeita redução de movimento.
 
 ## Stack e organização
@@ -58,4 +58,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Bola de neve: uma vez por pessoa em cada conversa. Protótipo em memória, sem alertas ao reabrir histórico; futuro banco deve garantir unicidade por conversa/remetente. O teste mostra recebimento local, não entrega remota. Respeitar notificações, silenciamento, redução de movimento e opções de vibração/animação; não prometer vibração em Safari/iPhone ou em segundo plano.
 - Recorte deve salvar os mesmos ajustes da prévia. Confirmação de remoção de grupo deve ficar visível e receber foco; preserve as regras do criador e dos administradores.
 
-- Integração iniciada pela configuração pública e `npm run supabase:check`. O teste é somente leitura do Auth e exige cadastro público bloqueado; não equivale a validar PostgreSQL/RLS. Próxima entrega: esquema/migrações após conexão confirmada. Guia: docs/conectar-supabase.md.
+- Integração iniciada pela configuração pública e `npm run supabase:check`. O teste é somente leitura do Auth e exige cadastro público bloqueado; não equivale a validar PostgreSQL/RLS. Conexão confirmada pelo usuário; base de perfis/convites em supabase/migrations, com aplicação manual no SQL Editor. Executar npm run test:db ao alterar SQL. Guia: docs/banco-inicial.md. Login real, aceite atômico de convites/OTP e mensagens ainda não estão ativos.
