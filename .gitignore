@@ -46,3 +46,11 @@ next-env.d.ts
 !.env.example
 /playwright-report/
 /test-results/
+
+# Android: local SDK, build outputs and private signing material
+/android/.gradle/
+/android/**/build/
+/android/local.properties
+*.jks
+*.keystore
+*signing.properties

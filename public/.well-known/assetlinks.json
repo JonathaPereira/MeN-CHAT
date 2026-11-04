@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.menchat.android",
+      "sha256_cert_fingerprints": [
+        "2F:7C:8E:B4:CC:86:74:D7:43:49:01:A8:6F:84:6F:40:8B:87:F5:CE:82:9F:28:F2:2B:44:4A:84:48:C7:64:CB"
+      ]
+    }
+  }
+]

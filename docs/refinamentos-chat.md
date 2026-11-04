@@ -15,8 +15,8 @@ O SQL é incremental: adiciona referências a mensagens e participantes, favorit
 - **Áudio:** reproduzir/pausar, barra de posição, tempo e botão de baixar. O nome do arquivo e o menu nativo foram retirados. A velocidade segue Configurações → Conversas e voz. Quando o formato não informa a duração, a posição pode ficar indisponível até o navegador conhecê-la.
 - **Foto:** toque na imagem para ampliar. Use +/− para zoom e deslize a área ampliada; o botão de baixar continua disponível. O balão não mostra o nome do arquivo. Documentos continuam mostrando seus nomes para identificação.
 - **Câmera:** ao lado do clipe, toque no ícone de câmera → Abrir câmera. Tire uma foto ou grave um vídeo com som e conclua. Confira o anexo e envie pela seta. Há também “Escolher do aparelho”. Fechar ou concluir libera câmera e microfone.
-- **Responder:** botão ⋯ da mensagem → Responder. Uma referência aparece no compositor e no balão enviado; × cancela antes de enviar.
-- **Marcar:** ⋯ → Marcar mensagem. A estrela no cabeçalho abre as últimas 200 mensagens marcadas da conversa. Os favoritos pertencem à sua conta; outros participantes não recebem sua marcação.
+- **Responder:** botão ⌄ da mensagem → Responder. Uma referência aparece no compositor e no balão enviado; × cancela antes de enviar.
+- **Marcar:** ⌄ → Marcar mensagem. A estrela no cabeçalho abre as últimas 200 mensagens marcadas da conversa. Os favoritos pertencem à sua conta; outros participantes não recebem sua marcação.
 - **Mencionar:** no grupo, digite @ ou toque no botão @ e escolha a pessoa. O envio guarda o ID do participante, além do texto visível. Não há uma notificação push separada por menção nesta entrega.
 - **Digitação:** nome, avatar e pontos animados aparecem junto aos balões, além do cabeçalho. O aviso respeita a privacidade do participante e desaparece após a expiração do sinal.
 
@@ -35,3 +35,5 @@ Perfil e configurações abrem em uma janela sobre o chat. O histórico permanec
 As páginas de chat/perfil reutilizam a consulta validada do perfil próprio, sem uma segunda consulta igual. A sincronização evita repetir confirmações de leitura sem alteração, executa consultas independentes em paralelo e reduz consultas quando a aba está oculta. Prévias já montadas não são recriadas a cada consulta. Não se usa cache público de dados privados nem se reduz a verificação de identidade.
 
 `npm run test:db` verifica isolamento de respostas, autorização de menções e favoritos pessoais, além dos controles anteriores. `npm run test:real-ui` testa mídia, câmera e liberação de dispositivos, menus, rascunhos e interações nos três tamanhos. A medição local com serviços fictícios não comprova a latência da Vercel/Supabase. Câmera física e integração hospedada precisam ser conferidas após a aplicação do SQL pelo proprietário.
+
+O botão ⌄ fica no canto superior direito do balão e abre um menu local, sem bloquear o chat. A opção Responder aceita texto e todos os tipos de mídia. Para o APK e push, consulte [Android e notificações](android-e-notificacoes.md).

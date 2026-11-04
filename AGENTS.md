@@ -107,3 +107,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Câmera pede permissão por ação, captura foto/vídeo para o rascunho e libera dispositivos ao fechar, concluir ou falhar, inclusive permissões que resolvem após o fechamento. HTTPS e navegador compatível; seletor de arquivos como alternativa. Vídeo capturado até 2 minutos/25 MB, foto até 5 MB.
 - Perfil/configurações podem abrir sobre o chat, preservando rascunhos; endereços diretos continuam protegidos por getUser e perfil próprio ativo. Evitar novas consultas de página ao abrir preferências, confirmações repetidas e downloads de mídia causados apenas pelo polling. Não marcar como lidas mensagens atrás de um menu aberto.
 - `test:real-ui` usa câmera/microfone sintéticos; não afirmar validação de dispositivos Android ou latência da produção a partir do mock. Digitação no histórico respeita preferências reais e expiração.
+
+## Android e push — migração 8
+
+- O usuário autorizou APK no site e notificações com o app fechado. Projeto `android/` usa Android Browser Helper/TWA sobre o domínio HTTPS, API 26–36, assinatura release própria. APK em `public/downloads/`; impressão pública em `public/.well-known/assetlinks.json`. Nunca versionar keystore/senhas; backup privado entregue ao proprietário é indispensável para futuras atualizações. Não prometer chamadas, offline privado ou Play Store.
+- Guia `docs/android-e-notificacoes.md`; fila/dispositivos privados, endpoints e chaves nunca retornam a membros. Push genérico sem nome/texto/mídia/sessão. Autor autenticado aciona somente sua fila; cron exige segredo separado e consulta atual de participação/silenciamento. Lease, três tentativas, expiração em 24 horas. Aceitar somente serviços oficiais de push, sem porta/credenciais.
+- VAPID/cron configurados uma vez na Vercel; segredo cron também no Supabase Vault. Não afirmar ativação hospedada sem evidência. Validar domínio, permissões e entrega em Android físico.
+- Menu é popover local, seta no canto superior direito; preservar histórico, Escape, foco e respostas a texto/mídia. Download visível na lista/login, com instruções mesmo sem beforeinstallprompt.

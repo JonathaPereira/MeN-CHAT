@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { PushSettings } from "@/components/push-settings";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { usePreferences } from "@/components/preferences-provider";
 import type { Preferences } from "@/lib/preferences";
@@ -159,6 +160,7 @@ export function RealSettings({
             ) : (
               <>
                 {toggle("notificationsEnabled", "Ativar avisos")}
+                <PushSettings />
                 {toggle("inAppAlerts", "Mostrar avisos dentro do aplicativo")}
                 {toggle("browserAlerts", "Mostrar notificações do navegador")}
                 {toggle("messagePreview", "Mostrar conteúdo na notificação")}
@@ -200,9 +202,9 @@ export function RealSettings({
                   Testar notificação
                 </button>
                 <p className="text-xs leading-relaxed text-[var(--muted)]">
-                  Avisos funcionam enquanto o aplicativo está aberto e dependem
-                  do navegador. Push com o app fechado é uma etapa posterior.
-                  Notificações só pedem permissão no botão acima.
+                  Avisos da aba e notificações em segundo plano têm controles
+                  separados. Permissões, sons e restrições de bateria também
+                  dependem do Android e do navegador.
                 </p>
               </>
             )}

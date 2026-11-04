@@ -9,6 +9,7 @@ import {
 import Link from "next/link";
 import {
   ArrowLeft,
+  ChevronDown,
   Check,
   CheckCheck,
   MessageCircle,
@@ -33,6 +34,8 @@ import {
 import { chatError } from "@/lib/chat/errors";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MessageMenu } from "./real/message-menu";
+import { InstallAppButton } from "@/components/install-app-button";
 import { Modal } from "@/components/modal";
 import { usePreferences } from "@/components/preferences-provider";
 import type {
@@ -99,6 +102,7 @@ export function PrivateChat({
     sticky = useRef(true),
     typing = useRef({ value: false, at: 0, sent: 0 });
   const seenThreads = useRef<Map<string, string> | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [deleting, setDeleting] = useState<ChatMessage | null>(null);
   useEffect(() => {
     viewingChat.current =
@@ -327,7 +331,7 @@ export function PrivateChat({
           !document.hidden &&
           document.hasFocus() &&
           sticky.current &&
-          viewingChat.current
+          viewingChat.current && !document.querySelector("dialog[open]")
             ? latest
             : 0;
         const isTyping =
@@ -581,6 +585,7 @@ export function PrivateChat({
             scroller.current.scrollTop = scroller.current.scrollHeight;
         });
       }
+      void fetch("/api/push/dispatch", { method: "POST", keepalive: true }).catch(() => {});
       void refreshThreads();
       return true;
     } catch (error) {
@@ -863,6 +868,7 @@ export function PrivateChat({
             </p>
           )}
         </nav>
+        <div className="install-list-entry"><InstallAppButton /></div>
         <footer className="real-list-footer">
           <Link
             href="/conta/perfil"
@@ -1027,6 +1033,14 @@ export function PrivateChat({
                     <article
                       className={`message-bubble real-message ${mine ? "message-outgoing" : "message-incoming"}`}
                     >
+                      <button type="button" className="message-options-arrow"
+                        aria-label="Opções da mensagem" aria-haspopup="true"
+                        aria-expanded={deleting?.id === m.id}
+                        onClick={(e) => {
+                          setMenuAnchor(e.currentTarget);
+                          setError("");
+                          setDeleting(deleting?.id === m.id ? null : m);
+                        }}><ChevronDown size={18} aria-hidden="true" /></button>
                       {!mine && thread.kind === "group" && (
                         <p className="mb-1 text-xs font-semibold text-[var(--accent)]">
                           {author?.name || "Participante anterior"}
@@ -1069,12 +1083,6 @@ export function PrivateChat({
                         {starred.includes(m.id) && !m.deleted_at && (
                           <Star size={12} aria-label="Mensagem marcada" />
                         )}
-                        <button
-                          aria-label="Opções da mensagem"
-                          onClick={() => setDeleting(m)}
-                        >
-                          ···
-                        </button>
                         <time dateTime={m.created_at}>
                           {new Date(m.created_at).toLocaleTimeString("pt-BR", {
                             hour: "2-digit",
@@ -1240,8 +1248,8 @@ export function PrivateChat({
             ))}
           </Modal>
         ))}
-      {deleting && (
-        <Modal title="Opções da mensagem" onClose={() => setDeleting(null)}>
+      {deleting && menuAnchor && (
+        <MessageMenu key={deleting.id} anchor={menuAnchor} onClose={() => setDeleting(null)}>
           {error && (
             <p role="alert" className="form-error mb-3">
               {error}
@@ -1250,12 +1258,12 @@ export function PrivateChat({
           {!deleting.deleted_at && (
             <>
               <button
-                className="secondary-button mb-3 w-full"
+                className="message-menu-item"
                 onClick={() => {
                   setReply(deleting);
                   setDeleting(null);
                   requestAnimationFrame(() =>
-                    document.getElementById("real-message")?.focus(),
+                    document.getElementById("real-message")?.focus({ preventScroll: true }),
                   );
                 }}
               >
@@ -1263,7 +1271,7 @@ export function PrivateChat({
                 Responder
               </button>
               <button
-                className="secondary-button mb-3 w-full"
+                className="message-menu-item"
                 onClick={() => void markMessage(deleting)}
               >
                 <Star size={17} />
@@ -1273,11 +1281,6 @@ export function PrivateChat({
               </button>
             </>
           )}
-          <p className="mb-4 text-sm">
-            Apagar para você oculta esta mensagem da sua conta. Apagar para
-            todos remove o conteúdo da conversa; cópias já baixadas permanecem
-            com quem as salvou.
-          </p>
           {[
             false,
             ...(deleting.sender_id === userId && !deleting.deleted_at
@@ -1286,7 +1289,7 @@ export function PrivateChat({
           ].map((everyone) => (
             <button
               key={String(everyone)}
-              className="secondary-button mb-3 w-full"
+              className="message-menu-item"
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
@@ -1325,7 +1328,7 @@ export function PrivateChat({
               {everyone ? "Apagar para todos" : "Apagar para mim"}
             </button>
           ))}
-        </Modal>
+        </MessageMenu>
       )}
       {panel && (
         <Modal

@@ -1,4 +1,5 @@
 "use server";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -88,6 +89,13 @@ export async function signOut(): Promise<void> {
   let failed = false;
   try {
     const client = await createClient();
+    const jar = await cookies();
+    const device = jar.get("menchat_push_id")?.value;
+    if (device && /^[0-9a-f-]{36}$/i.test(device)) {
+      const removal = await client.rpc("menchat_remove_push", { p_id: device });
+      if (removal.error) throw new Error("Não foi possível encerrar o dispositivo.");
+      jar.delete("menchat_push_id");
+    }
     const { error } = await client.auth.signOut({ scope: "local" });
     failed = Boolean(error);
   } catch {

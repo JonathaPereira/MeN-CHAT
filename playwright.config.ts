@@ -6,6 +6,7 @@ export default defineConfig({
     "**/real-auth.spec.ts",
     "**/invitations.spec.ts",
     "**/official.spec.ts",
+    "**/android.spec.ts",
   ],
   fullyParallel: true,
   timeout: 30_000,

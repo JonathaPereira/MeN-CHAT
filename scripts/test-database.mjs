@@ -178,6 +178,9 @@ try {
       "utf8",
     ),
   );
+  await sql(await readFile(new URL("../supabase/migrations/20261104000800_android_push.sql", import.meta.url), "utf8"));
+  await sql(await readFile(new URL("../supabase/tests/android-push.sql", import.meta.url), "utf8"));
+  console.log("PASS: push privado, fila com lease, silenciamento, remoção e privilégios.");
   console.log(
     "PASS: respostas isoladas por conversa, menções autorizadas e marcações pessoais.",
   );
@@ -251,7 +254,7 @@ try {
   await assert.rejects(sql(migration));
   assert.equal(
     await sql("select count(*) from menchat_private.schema_migrations;"),
-    "7",
+    "8",
   );
   console.log("PASS: reaplicação não altera o esquema existente.");
   const ownerScript = (

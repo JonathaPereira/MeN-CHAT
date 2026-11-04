@@ -1,0 +1,4 @@
+<resources>
+    <color name="menchat_green">#196B50</color>
+    <string name="asset_statements">[{\"relation\":[\"delegate_permission/common.handle_all_urls\"],\"target\":{\"namespace\":\"web\",\"site\":\"https://men-chat.vercel.app\"}}]</string>
+</resources>
