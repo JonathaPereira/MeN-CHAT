@@ -49,6 +49,7 @@ next-env.d.ts
 
 # Android: local SDK, build outputs and private signing material
 /android/.gradle/
+/android/.kotlin/
 /android/**/build/
 /android/local.properties
 *.jks

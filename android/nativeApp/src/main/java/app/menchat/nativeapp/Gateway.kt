@@ -103,7 +103,8 @@ internal class Gateway(
                         else ->
                             "Não foi possível concluir. Confira a conexão, os dados e suas permissões."
                     }
-                throw IllegalStateException(message)
+                val apiCode = runCatching { JSONObject(text).optString("code") }.getOrNull()
+                throw NativeApiException(response.code, safeApiCode(apiCode), message)
             }
             text
         }

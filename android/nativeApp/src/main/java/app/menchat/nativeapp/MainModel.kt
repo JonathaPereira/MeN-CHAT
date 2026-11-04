@@ -33,13 +33,15 @@ internal data class NativeState(
     val reply: Message? = null,
 )
 
-internal class MainModel(application: Application) : AndroidViewModel(application) {
+internal class MainModel(application: Application, val gateway: Gateway) :
+    AndroidViewModel(application) {
+    constructor(application: Application) : this(application, Gateway())
+
     var foreground = false
     var atBottom = true
     var covered = false
     val audio = NativeAudio(application) { error(it) }
     private val vault = SessionVault(application)
-    val gateway = Gateway().apply { onCredentials = { vault.save(it) } }
     private val mutable = MutableStateFlow(NativeState(restoring = vault.contains()))
     val state = mutable.asStateFlow()
     private var generation = 0L
@@ -57,6 +59,7 @@ internal class MainModel(application: Application) : AndroidViewModel(applicatio
     }
 
     init {
+        gateway.onCredentials = { vault.save(it) }
         if (vault.contains())
             viewModelScope.launch {
                 try {
@@ -136,61 +139,119 @@ internal class MainModel(application: Application) : AndroidViewModel(applicatio
         polling = true
         val epoch = generation
         val actor = state.value.account?.id
+        val selectedId = state.value.selected?.id
+        fun current() =
+            generation == epoch &&
+                state.value.account?.id == actor &&
+                state.value.selected?.id == selectedId
+        val warnings = mutableListOf<String>()
+        var stage = SyncStage.LISTA
         try {
-            val threads = withContext(Dispatchers.IO) { gateway.conversations() }
-            if (generation != epoch || state.value.account?.id != actor) return
-            change { it.copy(threads = threads) }
-            val target = state.value.selected ?: return
-            val updated = threads.find { it.id == target.id }
+            val threads =
+                try {
+                    withContext(Dispatchers.IO) { gateway.conversations() }
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (error: Exception) {
+                    if (!current()) return
+                    warnings += syncIssue(SyncStage.LISTA, error)
+                    null
+                }
+            if (!current()) return
+            if (threads != null) change { it.copy(threads = threads) }
+            val target = state.value.selected
+            if (target == null) {
+                change { it.copy(notice = warnings.takeIf { it.isNotEmpty() }?.joinToString("\n")) }
+                return
+            }
+            val updated = if (threads == null) target else threads.find { it.id == target.id }
             if (updated == null) {
                 if (!state.value.busy) select(null)
-                else
+                else {
+                    audio.stop()
                     change {
                         it.copy(
                             selected = target.copy(canSend = false),
                             messages = emptyList(),
                             people = emptyList(),
+                            reply = null,
                         )
                     }
+                }
                 return
             }
-            val current = state.value.messages
+            stage = SyncStage.HISTORICO
+            val previous = state.value.messages
             val rows =
                 withContext(Dispatchers.IO) {
-                    gateway.messages(target.id, after = current.lastOrNull()?.seq)
+                    gateway.messages(target.id, after = previous.lastOrNull()?.seq)
                 }
             val messages =
                 withContext(Dispatchers.IO) {
                     gateway.reconcile(
                         target.id,
-                        (current + rows).distinctBy { it.id }.sortedBy { it.seq },
+                        (previous + rows).distinctBy { it.id }.sortedBy { it.seq },
                     )
                 }
-            val people = withContext(Dispatchers.IO) { gateway.people(target.id) }
-            if (
-                generation != epoch ||
-                    state.value.account?.id != actor ||
-                    state.value.selected?.id != target.id
-            )
-                return
+            if (!current()) return
+            // Render authorized history before optional roster/receipt requests.
             change {
                 it.copy(
                     selected = updated,
                     messages = messages,
-                    people = people,
                     notice = null,
-                    older = if (current.isEmpty()) rows.size == 100 else it.older,
+                    older = if (previous.isEmpty()) rows.size == 100 else it.older,
                 )
             }
+            try {
+                val people = withContext(Dispatchers.IO) { gateway.people(target.id) }
+                if (!current()) return
+                change { it.copy(people = people) }
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (error: Exception) {
+                if (!current()) return
+                // Do not leave a stale typing indicator when the roster cannot refresh.
+                change { it.copy(people = emptyList()) }
+                warnings += syncIssue(SyncStage.PARTICIPANTES, error)
+            }
+            if (!current()) return
             val latest = messages.lastOrNull()?.seq ?: 0
             if (latest > seenSeq && foreground && atBottom && !covered) {
-                withContext(Dispatchers.IO) { gateway.seen(target.id, latest) }
-                seenSeq = latest
+                try {
+                    withContext(Dispatchers.IO) { gateway.seen(target.id, latest) }
+                    if (!current()) return
+                    seenSeq = latest
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (error: Exception) {
+                    if (!current()) return
+                    warnings += syncIssue(SyncStage.LEITURA, error)
+                }
             }
+            if (current())
+                change { it.copy(notice = warnings.takeIf { it.isNotEmpty() }?.joinToString("\n")) }
         } catch (cancel: CancellationException) {
             throw cancel
-        } catch (_: Exception) {
-            change { it.copy(notice = "Não foi possível sincronizar. Verifique a conexão.") }
+        } catch (error: Exception) {
+            if (!current()) return
+            if (
+                stage == SyncStage.HISTORICO &&
+                    error is NativeApiException &&
+                    error.status in listOf(401, 403)
+            ) {
+                audio.stop()
+                change {
+                    it.copy(
+                        messages = emptyList(),
+                        people = emptyList(),
+                        reply = null,
+                        selected = it.selected?.copy(canSend = false),
+                    )
+                }
+            }
+            warnings += syncIssue(stage, error)
+            change { it.copy(notice = warnings.joinToString("\n")) }
         } finally {
             polling = false
         }

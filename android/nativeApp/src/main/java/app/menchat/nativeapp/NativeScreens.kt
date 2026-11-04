@@ -72,6 +72,9 @@ private val Light =
 @Composable
 internal fun MenChatNative(model: MainModel) {
     val context = LocalContext.current
+    val version = remember {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
+    }
     val prefs = remember {
         context.getSharedPreferences("menchat-native-options", Context.MODE_PRIVATE)
     }
@@ -279,6 +282,7 @@ internal fun MenChatNative(model: MainModel) {
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(state.account!!.name, fontWeight = FontWeight.Bold)
+                            Text("MenChat $version", style = MaterialTheme.typography.bodySmall)
                             Text("Seu código: ${state.account!!.code}")
                             if (state.account!!.status.isNotBlank()) Text(state.account!!.status)
                             Row(verticalAlignment = Alignment.CenterVertically) {
