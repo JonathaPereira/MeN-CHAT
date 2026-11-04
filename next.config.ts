@@ -11,6 +11,21 @@ const localAddresses = Object.values(networkInterfaces())
   .map((entry) => entry.address);
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+          { key: "Service-Worker-Allowed", value: "/" },
+          {
+            key: "Content-Type",
+            value: "application/javascript; charset=utf-8",
+          },
+        ],
+      },
+    ];
+  },
   // Evita usar o lockfile de uma pasta ZIP/clone acima deste projeto.
   turbopack: { root: projectRoot },
   // O Next dev também verifica a origem de scripts e do WebSocket de HMR.

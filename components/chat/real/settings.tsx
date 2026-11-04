@@ -196,6 +196,10 @@ export function RealSettings() {
           </div>
         </>
       )}
+      <p className="text-xs text-[var(--muted)]">
+        No Android: menu ⋮ do Chrome → Instalar aplicativo ou Adicionar à tela
+        inicial.
+      </p>
       {notice && (
         <p role="status" className="demo-note">
           {notice}

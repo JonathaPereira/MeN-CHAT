@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import { Download, FileText, RefreshCw } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -15,6 +15,19 @@ export function RealMedia({
   id: string;
 }) {
   const { settings } = usePreferences();
+  const player = useRef<HTMLMediaElement | null>(null);
+  const bindPlayer = useCallback((node: HTMLMediaElement | null) => {
+    const previous = player.current;
+    if (!node && previous)
+      queueMicrotask(() => {
+        if (player.current !== previous) {
+          previous.pause();
+          previous.removeAttribute("src");
+          previous.load();
+        }
+      });
+    player.current = node;
+  }, []);
   const [item, setItem] = useState<Upload | null>(null),
     [url, setUrl] = useState(""),
     [error, setError] = useState(""),
@@ -102,6 +115,7 @@ export function RealMedia({
               />
             ) : url && item.kind === "audio" ? (
               <audio
+                ref={bindPlayer}
                 controls
                 preload="none"
                 src={url}
@@ -113,6 +127,7 @@ export function RealMedia({
               />
             ) : url && item.kind === "video" ? (
               <video
+                ref={bindPlayer}
                 controls
                 playsInline
                 preload="metadata"

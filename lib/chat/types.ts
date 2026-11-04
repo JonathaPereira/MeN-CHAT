@@ -9,6 +9,7 @@ export type ChatThread = {
   last_body: string | null;
   last_at: string;
   last_sender: string | null;
+  unread_count?: number;
 };
 export type ChatMessage = {
   id: string;
@@ -18,6 +19,7 @@ export type ChatMessage = {
   body: string;
   created_at: string;
   attachment_id: string | null;
+  deleted_at?: string | null;
 };
 export type Participant = {
   id: string;

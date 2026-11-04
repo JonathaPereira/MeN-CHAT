@@ -87,7 +87,7 @@ export function RealProfileForm({ profile }: { profile: RealProfile }) {
       });
       if (result.error)
         throw new Error(
-          "Não foi possível salvar. Confira sua sessão, a migração 5 e o upload da foto.",
+          "Não foi possível salvar. Verifique a conexão e tente novamente.",
         );
       const savedPath = reservation.current?.path || (remove ? null : oldPath);
       setPath(savedPath);

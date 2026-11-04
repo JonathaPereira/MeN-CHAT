@@ -1,3 +1,4 @@
+import { chatError } from "./errors.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Upload } from "./types";
 export async function reserveUpload(
@@ -13,7 +14,10 @@ export async function reserveUpload(
   });
   if (error || !data?.[0])
     throw new Error(
-      "Não foi possível reservar o arquivo. Confira o formato, as cotas e a migração.",
+      chatError(
+        error,
+        "Não foi possível preparar o arquivo. Verifique sua conexão e tente novamente.",
+      ),
     );
   return { ...data[0], name: file.name, mime: file.type, bytes: file.size };
 }
@@ -23,13 +27,11 @@ export async function uploadFile(
   file: File,
 ) {
   const bucket = item.kind === "avatar" ? "menchat-avatars" : "menchat-media";
-  const result = await client.storage
-    .from(bucket)
-    .upload(item.path, file, {
-      contentType: file.type,
-      upsert: false,
-      cacheControl: "0",
-    });
+  const result = await client.storage.from(bucket).upload(item.path, file, {
+    contentType: file.type,
+    upsert: false,
+    cacheControl: "0",
+  });
   // Uma resposta perdida pode deixar o objeto já enviado. A RPC final verifica tamanho/tipo no Storage.
   if (
     result.error &&
@@ -37,7 +39,10 @@ export async function uploadFile(
     !/already exists|duplicate/i.test(result.error.message)
   )
     throw new Error(
-      "Upload interrompido. O arquivo foi mantido para tentar novamente.",
+      chatError(
+        result.error,
+        "Upload interrompido. O arquivo foi mantido para tentar novamente.",
+      ),
     );
 }
 export async function discardUpload(client: SupabaseClient, item: Upload) {

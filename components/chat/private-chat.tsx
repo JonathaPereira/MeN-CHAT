@@ -76,6 +76,19 @@ export function PrivateChat({
     sticky = useRef(true),
     typing = useRef({ value: false, at: 0, sent: 0 });
   const seenThreads = useRef<Map<string, string> | null>(null);
+  const [deleting, setDeleting] = useState<ChatMessage | null>(null);
+  const [welcome, setWelcome] = useState<{ name: string; code: string } | null>(
+    null,
+  );
+  useEffect(() => {
+    let live = true;
+    void client.rpc("menchat_welcome").then(({ data }) => {
+      if (live) setWelcome(data?.[0] || null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [client]);
   const thread = threads.find((t) => t.id === selected),
     others = people.filter((p) => p.id !== userId),
     typists = others.filter((p) => p.is_typing);
@@ -107,7 +120,7 @@ export function PrivateChat({
   );
   const refreshThreads = useCallback(async () => {
     try {
-      const { data, error } = await client.rpc("menchat_list_chats");
+      const { data, error } = await client.rpc("menchat_inbox");
       if (error) throw new Error();
       const rows = (data || []) as ChatThread[];
       const previous = seenThreads.current;
@@ -135,7 +148,7 @@ export function PrivateChat({
     } catch {
       setLoading(false);
       setError(
-        "Não foi possível atualizar as conversas. Confira a conexão e aplique a migração 5.",
+        "Não foi possível atualizar as conversas. Verifique sua conexão ou tente novamente em instantes.",
       );
       return null;
     }
@@ -204,7 +217,42 @@ export function PrivateChat({
           if (rows.length < 100) break;
           cursor = rows.at(-1)!.seq;
         }
+        // Só identificadores e tombstones: não baixar novamente todos os textos/mídias.
+        const ids = loaded.current.map((m) => m.id);
+        for (let start = 0; start < ids.length; start += 200) {
+          const slice = ids.slice(start, start + 200);
+          const current = await client
+            .from("menchat_messages")
+            .select("id,deleted_at")
+            .in("id", slice);
+          if (!alive) return;
+          if (!current.error) {
+            const rows = current.data as {
+              id: string;
+              deleted_at: string | null;
+            }[];
+            const visible = new Map(rows.map((row) => [row.id, row]));
+            loaded.current = loaded.current
+              .filter((m) => !slice.includes(m.id) || visible.has(m.id))
+              .map((m) =>
+                visible.get(m.id)?.deleted_at
+                  ? {
+                      ...m,
+                      deleted_at: visible.get(m.id)!.deleted_at,
+                      body: "Mensagem apagada.",
+                      attachment_id: null,
+                    }
+                  : m,
+              );
+            setMessages(loaded.current);
+          }
+        }
         const latest = loaded.current.at(-1)?.seq || 0;
+        if (!document.hidden && document.hasFocus() && sticky.current)
+          await client.rpc("menchat_seen", {
+            p_thread: selected,
+            p_seq: latest,
+          });
         await client.rpc("menchat_touch", {
           p_thread: selected,
           p_received: latest,
@@ -546,6 +594,32 @@ export function PrivateChat({
             ))}
           </div>
         </div>
+        {welcome && (
+          <div className="welcome-inviter">
+            <p>{welcome.name} convidou você.</p>
+            <p>
+              Código: <strong>{welcome.code}</strong>
+            </p>
+            <button
+              className="secondary-button"
+              onClick={async () => {
+                const result = await client.rpc("menchat_open_private", {
+                  p_code: welcome.code,
+                });
+                if (result.data) {
+                  await refreshThreads();
+                  selectThread(String(result.data));
+                  setWelcome(null);
+                } else
+                  setError(
+                    "Não foi possível iniciar a conversa. Confira a conexão e tente novamente.",
+                  );
+              }}
+            >
+              Conversar com {welcome.name.split(" ")[0]}
+            </button>
+          </div>
+        )}
         <nav
           className="min-h-0 flex-1 overflow-y-auto p-2"
           aria-label="Lista de conversas"
@@ -587,6 +661,14 @@ export function PrivateChat({
                     : "Somente leitura"}
                 </span>
               </span>
+              {!!t.unread_count && (
+                <span
+                  className="unread-badge"
+                  aria-label={`${t.unread_count} mensagens não lidas`}
+                >
+                  {t.unread_count > 99 ? "99+" : t.unread_count}
+                </span>
+              )}
             </button>
           ))}
           {!visible.length && (
@@ -744,13 +826,19 @@ export function PrivateChat({
                           {author?.name || "Participante anterior"}
                         </p>
                       )}
-                      {m.attachment_id && (
+                      {!m.deleted_at && m.attachment_id && (
                         <RealMedia client={client} id={m.attachment_id} />
                       )}
                       <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">
                         {m.body}
                       </p>
                       <div className="real-message-meta">
+                        <button
+                          aria-label="Opções da mensagem"
+                          onClick={() => setDeleting(m)}
+                        >
+                          ···
+                        </button>
                         <time dateTime={m.created_at}>
                           {new Date(m.created_at).toLocaleTimeString("pt-BR", {
                             hour: "2-digit",
@@ -886,6 +974,62 @@ export function PrivateChat({
             ))}
           </Modal>
         ))}
+      {deleting && (
+        <Modal title="Apagar mensagem" onClose={() => setDeleting(null)}>
+          <p className="mb-4 text-sm">
+            Apagar para você oculta esta mensagem da sua conta. Apagar para
+            todos remove o conteúdo da conversa; cópias já baixadas permanecem
+            com quem as salvou.
+          </p>
+          {[
+            false,
+            ...(deleting.sender_id === userId && !deleting.deleted_at
+              ? [true]
+              : []),
+          ].map((everyone) => (
+            <button
+              key={String(everyone)}
+              className="secondary-button mb-3 w-full"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const result = await client.rpc("menchat_delete_message", {
+                    p_id: deleting.id,
+                    p_everyone: everyone,
+                  });
+                  if (result.error) throw new Error();
+                  if (everyone)
+                    merge([
+                      {
+                        ...deleting,
+                        body: "Mensagem apagada.",
+                        attachment_id: null,
+                        deleted_at: new Date().toISOString(),
+                      },
+                    ]);
+                  else {
+                    loaded.current = loaded.current.filter(
+                      (m) => m.id !== deleting.id,
+                    );
+                    setMessages(loaded.current);
+                  }
+                  setDeleting(null);
+                  void refreshThreads();
+                } catch {
+                  setError(
+                    "Não foi possível apagar. Confira sua permissão e tente novamente.",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {everyone ? "Apagar para todos" : "Apagar para mim"}
+            </button>
+          ))}
+        </Modal>
+      )}
       {receipt && (
         <Modal
           title="Confirmações da mensagem"

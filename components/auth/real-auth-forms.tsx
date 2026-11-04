@@ -162,7 +162,7 @@ export function EmailAccessForm({ disabled }: { disabled: boolean }) {
         href="/entrar"
         className="block text-center text-sm text-[var(--accent)]"
       >
-        Voltar ao login real
+        Voltar ao login
       </Link>
     </div>
   );

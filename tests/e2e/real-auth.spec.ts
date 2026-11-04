@@ -28,9 +28,6 @@ test("acesso real e primeiro acesso ficam separados da demonstração", async ({
   page,
 }) => {
   await page.goto("/login");
-  await page
-    .getByRole("link", { name: "Entrar na conta real", exact: true })
-    .click();
   await expect(page).toHaveURL(/\/entrar$/);
   await expect(
     page.getByRole("link", { name: "Criar perfil", exact: true }),

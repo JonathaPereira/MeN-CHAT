@@ -19,36 +19,14 @@ for (const hostname of ["localhost", "127.0.0.1"]) {
           `${response.status()} ${new URL(response.url()).pathname}`,
         );
     });
-    await page.goto(`http://${hostname}:3102/conversas`);
-    await page
-      .getByRole("link", { name: "Abrir configurações", exact: true })
-      .click();
+    await page.goto(`http://${hostname}:3102/entrar`);
     await expect(
-      page.getByRole("heading", { name: "Configurações", exact: true }),
+      page.getByRole("heading", { name: "Entrar", exact: true }),
     ).toBeVisible();
-    await page
-      .getByRole("link", { name: "Voltar ao chat", exact: true })
-      .click();
-    await page
-      .getByLabel("Mensagem", { exact: true })
-      .fill("Teste do servidor de desenvolvimento");
-    await page
-      .getByRole("button", { name: "Enviar mensagem de teste", exact: true })
-      .click();
-    await expect(page.getByRole("log")).toContainText(
-      "Mensagem de teste recebida!",
-    );
-    // A recarga também verifica se o cache do navegador preserva uma página interativa.
+    await page.getByRole("button", { name: "Ativar modo escuro" }).click();
+    await expect(page.locator("html")).toHaveClass(/dark/);
     await page.reload();
-    await expect(
-      page.getByRole("button", { name: "Anexar arquivo", exact: true }),
-    ).toBeVisible();
-    await page
-      .getByRole("link", { name: "Abrir configurações", exact: true })
-      .click();
-    await expect(
-      page.getByRole("heading", { name: "Configurações", exact: true }),
-    ).toBeVisible();
+    await expect(page.getByLabel("E-mail", { exact: true })).toBeVisible();
     await expect.poll(() => hmrFrames).toBeGreaterThan(0);
     expect(failedAssets).toEqual([]);
     expect(errors).toEqual([]);

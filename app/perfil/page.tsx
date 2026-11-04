@@ -1,6 +1,4 @@
-import type { Metadata } from "next";
-import { ProfileForm } from "@/components/profile-form";
-export const metadata: Metadata = { title: "Meu perfil" };
-export default function ProfilePage() {
-  return <ProfileForm />;
+import { redirect } from "next/navigation";
+export default function Page() {
+  redirect("/conta/perfil");
 }

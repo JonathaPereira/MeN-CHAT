@@ -148,6 +148,24 @@ try {
     ),
     /CHAT_COMPLETO_OK/,
   );
+  await sql(
+    await readFile(
+      new URL(
+        "../supabase/migrations/20261104000600_official_app.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  await sql(
+    await readFile(
+      new URL("../supabase/tests/official-app.sql", import.meta.url),
+      "utf8",
+    ),
+  );
+  console.log(
+    "PASS: exclusão por autor, ocultação pessoal e contagem privada de não lidas.",
+  );
   console.log("PASS: grupos, mídia privada, limites, perfil e indicadores.");
   assert.match(
     await sql(
@@ -215,7 +233,7 @@ try {
   await assert.rejects(sql(migration));
   assert.equal(
     await sql("select count(*) from menchat_private.schema_migrations;"),
-    "5",
+    "6",
   );
   console.log("PASS: reaplicação não altera o esquema existente.");
   const ownerScript = (

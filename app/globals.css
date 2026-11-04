@@ -1724,3 +1724,80 @@
   border-radius: 6px;
   font-size: 7px;
 }
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: 100dvh;
+  background: var(--canvas);
+  font: 13px system-ui;
+  color: var(--muted);
+}
+.app-loading-bar {
+  width: 100px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 4px;
+  animation: loading-pulse 1s ease-in-out infinite alternate;
+}
+@keyframes loading-pulse {
+  to {
+    opacity: 0.25;
+    transform: scaleX(0.45);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-loading-bar {
+    animation: none;
+  }
+}
+.unread-badge {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 20px;
+  background: var(--accent);
+  color: var(--panel);
+  font-size: 11px;
+  font-weight: 700;
+}
+.welcome-inviter {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.8;
+  background: var(--accent-soft);
+}
+.welcome-inviter button {
+  margin-top: 8px;
+}
+.app-network-notice {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 10px;
+  background: #874716;
+  color: white;
+  text-align: center;
+  font: 12px system-ui;
+}
+.app-install {
+  position: fixed;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  right: 16px;
+  z-index: 40;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 3px 18px #0002;
+  font: 12px system-ui;
+  color: var(--ink);
+}

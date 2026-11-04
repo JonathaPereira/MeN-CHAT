@@ -9,6 +9,7 @@ import {
 async function mock(page: Page, loseResponse = false) {
   let lost = false,
     failConfirm = false;
+  let welcome: { name: string; code: string }[] = [];
   const blobs = new Map<string, Buffer>();
   const profile = { ...baseProfile };
   const threads: Record<string, unknown>[] = [],
@@ -41,7 +42,7 @@ async function mock(page: Page, loseResponse = false) {
       };
     else if (path === "/rest/v1/menchat_profiles")
       data = object ? profile : [profile];
-    else if (path === "/rest/v1/rpc/menchat_list_chats") data = threads;
+    else if (path === "/rest/v1/rpc/menchat_inbox") data = threads;
     else if (path === "/rest/v1/rpc/menchat_create_group") {
       const id = randomUUID();
       threads.push({
@@ -72,7 +73,23 @@ async function mock(page: Page, loseResponse = false) {
           shares_read: true,
         },
       ];
-    else if (path === "/rest/v1/rpc/menchat_touch") data = null;
+    else if (path === "/rest/v1/rpc/menchat_welcome") data = welcome;
+    else if (path === "/rest/v1/rpc/menchat_seen") {
+      for (const t of threads) if (t.id === body.p_thread) t.unread_count = 0;
+      data = null;
+    } else if (path === "/rest/v1/rpc/menchat_delete_message") {
+      const index = messages.findIndex((m) => m.id === body.p_id);
+      if (index >= 0) {
+        if (body.p_everyone)
+          Object.assign(messages[index], {
+            body: "Mensagem apagada.",
+            attachment_id: null,
+            deleted_at: new Date().toISOString(),
+          });
+        else messages.splice(index, 1);
+      }
+      data = null;
+    } else if (path === "/rest/v1/rpc/menchat_touch") data = null;
     else if (path === "/rest/v1/rpc/menchat_reserve_upload") {
       const id = randomUUID();
       const item = {
@@ -148,7 +165,13 @@ async function mock(page: Page, loseResponse = false) {
         let rows = messages.filter(
           (m) =>
             !url.searchParams.get("id") ||
-            String(m.id) === url.searchParams.get("id")?.slice(3),
+            (url.searchParams.get("id")?.startsWith("in.")
+              ? url.searchParams
+                  .get("id")!
+                  .slice(4, -1)
+                  .split(",")
+                  .includes(String(m.id))
+              : String(m.id) === url.searchParams.get("id")?.slice(3)),
         );
         const seq = url.searchParams.get("seq");
         if (seq?.startsWith("gt."))
@@ -221,6 +244,22 @@ async function mock(page: Page, loseResponse = false) {
   });
   await page.emulateMedia({ reducedMotion: "reduce" });
   return {
+    seedWelcome: () => {
+      welcome = [{ name: "Quem convidou", code: "B0T123" }];
+    },
+    seedInbox: () =>
+      threads.push({
+        id: randomUUID(),
+        name: "Mensagens novas",
+        kind: "group",
+        can_send: true,
+        owner_id: userId,
+        creator_id: userId,
+        last_at: new Date().toISOString(),
+        last_body: "Olá",
+        last_sender: "other",
+        unread_count: 3,
+      }),
     recover: () => {
       failConfirm = false;
     },
@@ -405,4 +444,50 @@ test("resposta perdida de mídia permite repetir sem reenviar o objeto publicado
       .getByRole("log")
       .getByRole("button", { name: "Baixar foto-teste.png" }),
   ).toHaveCount(1);
+});
+
+test("não lidas mostram quantidade e mensagens podem ser apagadas", async ({
+  page,
+}) => {
+  const service = await mock(page);
+  service.seedInbox();
+  await page.goto("/conta/chat");
+  await expect(page.getByLabel("3 mensagens não lidas")).toBeVisible();
+  await page.getByRole("button", { name: /Mensagens novas/ }).click();
+  await page
+    .getByLabel("Mensagem", { exact: true })
+    .fill("Mensagem descartável");
+  await page
+    .getByRole("button", { name: "Enviar mensagem", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Opções da mensagem", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Apagar para todos", exact: true })
+    .click();
+  await expect(
+    page.getByRole("log").getByText("Mensagem apagada.", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Opções da mensagem", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Apagar para mim", exact: true })
+    .click();
+  await expect(
+    page.getByRole("log").getByText("Mensagem apagada.", { exact: true }),
+  ).toHaveCount(0);
+});
+
+test("convite aceito mostra o código de quem convidou", async ({ page }) => {
+  const service = await mock(page);
+  service.seedWelcome();
+  await page.goto("/conta/chat");
+  await expect(page.getByText("B0T123", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Conversar com Quem" }),
+  ).toBeVisible();
 });

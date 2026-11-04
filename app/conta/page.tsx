@@ -67,7 +67,7 @@ export default async function AccountPage({
         </Link>
       )}
       <Link href="/conta/chat" className="primary-button mt-5 w-full">
-        Abrir conversas reais
+        Abrir conversas
       </Link>
       <Link href="/conta/perfil" className="secondary-button mt-4 w-full">
         Editar perfil

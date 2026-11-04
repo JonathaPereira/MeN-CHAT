@@ -38,7 +38,7 @@ export function CreateGroupDialog({
       });
       if (error || !data)
         throw new Error(
-          "Não foi possível criar. Confira os códigos, as permissões e a migração.",
+          "Não foi possível criar. Confira os códigos e suas permissões e tente novamente.",
         );
       await onCreated(String(data));
       onClose();

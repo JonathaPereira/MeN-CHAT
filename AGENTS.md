@@ -90,3 +90,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Membros saídos/removidos perdem histórico e mídia; entrada/readmissão permite histórico completo. Criador imutável, dono transfere antes de sair com outros membros, admins do app não têm leitura global.
 - Digitação/recibos vêm do banco com preferências reais; expiração 6 s, consulta 3 s. Marcar leitura somente com aba focada/visível e fim do histórico. Não confundir gravado no servidor com recebido/lido. Confirmações consideram participantes atuais.
 - `test:real-ui` usa processo/domínio falsos exclusivos de teste, sem bypass no app. Não usar mocks para afirmar sucesso do Supabase hospedado. Executar suítes de navegador sequencialmente, pois dois next dev do checkout compartilham saída.
+
+## App oficial — migração 6
+
+- Rotas do protótipo foram aposentadas e redirecionam para o app protegido. Não remover avisos para fazer dados fictícios parecerem reais. Suíte oficial Playwright exclui os testes legados, preservados no repositório.
+- PWA Android: manifesto, PNGs e worker somente rede; nenhuma conversa, token ou mídia em Cache Storage. Não prometer offline privado ou push.
+- Exclusão para todos somente pelo autor; apagadas mantêm tombstone e deixam de autorizar mídia. Para mim é persistente por usuário. Cópias e URLs já emitidas não podem ser recolhidas; arquivos físicos aguardam limpeza administrativa.
+- Contador privado de vistas separado de read_receipts; contato do convidador somente ao membro autenticado, respeitando show_code/allow_code_lookup.
+- Guia atual: docs/app-oficial.md. Aplicar a migração 6 e validar em Android físico antes de afirmar instalação hospedada confirmada.
