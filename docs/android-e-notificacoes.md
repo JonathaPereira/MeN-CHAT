@@ -1,5 +1,7 @@
 # Android, APK e notificações
 
+Este guia descreve o APK legado 1.x (TWA) e o Web Push do site/PWA. Para o APK Kotlin 2.0.0, consulte [Android nativo — etapa 1](android-nativo-etapa-1.md); notificações web não equivalem a notificações nativas.
+
 O APK MenChat 1.0.1 usa Trusted Web Activity e Android Browser Helper oficial, sobre a publicação HTTPS. Requer Android 8 ou posterior e Chrome atualizado; utiliza as mesmas contas, conversas e recursos da web. Não precisa copiar dados entre duas versões. A atualização das telas vem do site; mudanças no pacote Android exigem instalar um APK com versão maior e a mesma assinatura.
 
 ## Instalação

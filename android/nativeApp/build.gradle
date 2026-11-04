@@ -1,0 +1,47 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
+}
+android {
+    namespace 'app.menchat.nativeapp'
+    compileSdk 36
+    buildToolsVersion '36.0.0'
+    defaultConfig { applicationId 'app.menchat.android'; minSdk 26; targetSdk 36; versionCode 3; versionName '2.0.0' }
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('MENCHAT_KEYSTORE') ?: '../release.jks')
+            storePassword System.getenv('MENCHAT_STORE_PASSWORD')
+            keyAlias System.getenv('MENCHAT_KEY_ALIAS') ?: 'menchat'
+            keyPassword System.getenv('MENCHAT_KEY_PASSWORD')
+        }
+    }
+    buildTypes { release { signingConfig signingConfigs.release; debuggable false; minifyEnabled false } }
+    buildFeatures { compose true }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    kotlinOptions { jvmTarget = '17' }
+    testOptions {
+        unitTests.includeAndroidResources = true
+        unitTests.all {
+            maxHeapSize = '1g'
+            jvmArgs '--add-opens=java.base/jdk.internal.access=ALL-UNNAMED'
+            systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
+            ['http.proxyHost','http.proxyPort','https.proxyHost','https.proxyPort','user.home'].each { key ->
+                if (System.getProperty(key)) systemProperty key, System.getProperty(key)
+            }
+        }
+    }
+}
+dependencies {
+    implementation platform('androidx.compose:compose-bom:2025.10.01')
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-core'
+    implementation 'androidx.activity:activity-compose:1.11.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.9.4'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'io.coil-kt:coil-compose:2.7.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.17'
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+}

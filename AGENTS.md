@@ -116,3 +116,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Menu é popover local, seta no canto superior direito; preservar histórico, Escape, foco e respostas a texto/mídia. Download visível na lista/login, com instruções mesmo sem beforeinstallprompt.
 
 - Android 1.0.1: declarar ManageDataLauncherActivity, manageSpaceActivity e MANAGE_SPACE_URL. O helper a habilita na abertura; omissão causa IllegalArgumentException em dispositivo real. Executar ./gradlew testDebugUnitTest (Robolectric Android 15/16), assembleRelease e conferir o manifesto do APK final, certificado e versionCode. Nunca substituir assinatura nem pedir desinstalação para atualizar. Links da versão quebrada no site redirecionam para a corrigida.
+
+## Android nativo — etapa 1 (2.0.0)
+
+- O usuário escolheu delegar a melhor alternativa para não abrir o Chrome. Foi escolhida migração nativa Kotlin/Compose em etapas; esta entrega cobre login, conversas, texto e áudio, preservando a web e documentando recursos ainda não migrados. Não chamar WebView de interface nativa.
+- Novo módulo `android/nativeApp`, mesmo applicationId/assinatura, versionCode 3. Alias antigo de lançamento aponta à NativeActivity, preservando atalhos; nenhum TwaLauncher/Browser Helper entra nesse APK. `android/app` é legado TWA, não o módulo publicado como 2.0.0.
+- Guia `docs/android-nativo-etapa-1.md`. `/api/mobile/config` retorna somente URL/chave publicável, sem autenticar conta; getUser remoto e perfil próprio ativo são obrigatórios no cliente antes de liberar as telas. RLS governa cada consulta/mutação. Senha só em memória; tokens no Android Keystore/AES-GCM, nenhum segredo administrativo no APK. Respeitar renovação antes de autenticar solicitações.
+- Não prometer notificações nativas com app fechado: Web Push pertence ao site; FCM/notificações Android exigem etapa própria. Não avançar automaticamente para essa integração ou fingir paridade completa.
+- `:nativeApp:testDebugUnitTest` verifica contratos HTTP e Activity Kotlin em Robolectric Android 15/16; `:nativeApp:assembleRelease`, verificar certificado, versionCode, manifesto e alinhamento ELF/ZIP de 16 KB. Testes simulados não substituem validação no Poco físico.

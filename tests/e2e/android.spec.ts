@@ -4,11 +4,11 @@ test("APK e vínculo de domínio são públicos, com checksum verificável", asy
   request,
   page,
 }) => {
-  const response = await request.get("/downloads/menchat-1.0.1.apk");
+  const response = await request.get("/downloads/menchat-2.0.0.apk");
   expect(response.ok()).toBe(true);
   const body = await response.body();
   expect(body.length).toBeGreaterThan(1000000);
-  const checksum = await request.get("/downloads/menchat-1.0.1.apk.sha256");
+  const checksum = await request.get("/downloads/menchat-2.0.0.apk.sha256");
   expect((await checksum.text()).split(" ")[0]).toBe(
     createHash("sha256").update(body).digest("hex"),
   );
@@ -27,7 +27,7 @@ test("APK e vínculo de domínio são públicos, com checksum verificável", asy
     .click();
   await expect(
     page.getByRole("link", { name: /Baixar APK Android/ }),
-  ).toHaveAttribute("download", "menchat-1.0.1.apk");
+  ).toHaveAttribute("download", "menchat-2.0.0.apk");
 });
 test("push exige identidade e protege requisições de outro site", async ({
   request,

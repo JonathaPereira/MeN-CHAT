@@ -114,6 +114,10 @@ test("microfone grava e envia com dois cliques sem modal de anexo", async ({
   await context.grantPermissions(["microphone"]);
   await mock(page);
   await createGroup(page);
+  const mic = await page.getByRole("button", { name: "Gravar mensagem de voz" }).boundingBox();
+  const send = await page.getByRole("button", { name: "Enviar mensagem", exact: true }).boundingBox();
+  expect(mic!.x).toBeGreaterThan(page.viewportSize()!.width * 0.6);
+  expect(send!.x - mic!.x - mic!.width).toBeLessThanOrEqual(12);
   await page.getByRole("button", { name: "Gravar mensagem de voz" }).click();
   await expect(
     page.getByRole("region", { name: "Gravador de áudio" }),

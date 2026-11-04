@@ -2043,3 +2043,11 @@
   background: var(--accent); color: var(--canvas); font-size: 13px; font-weight: 600;
 }
 @media (display-mode: standalone) { .install-entry { display: none; } .install-list-entry { padding: 0; } }
+
+/* Agrupa gravação e envio à direita, inclusive no compositor de duas linhas. */
+.real-composer > .voice-mic {
+  margin-left: auto;
+}
+.real-composer > .voice-mic + .send-button {
+  margin-left: 0;
+}
