@@ -4,11 +4,11 @@ test("APK e vínculo de domínio são públicos, com checksum verificável", asy
   request,
   page,
 }) => {
-  const response = await request.get("/downloads/menchat-1.0.0.apk");
+  const response = await request.get("/downloads/menchat-1.0.1.apk");
   expect(response.ok()).toBe(true);
   const body = await response.body();
   expect(body.length).toBeGreaterThan(1000000);
-  const checksum = await request.get("/downloads/menchat-1.0.0.apk.sha256");
+  const checksum = await request.get("/downloads/menchat-1.0.1.apk.sha256");
   expect((await checksum.text()).split(" ")[0]).toBe(
     createHash("sha256").update(body).digest("hex"),
   );
@@ -18,13 +18,16 @@ test("APK e vínculo de domínio são públicos, com checksum verificável", asy
   expect(target.sha256_cert_fingerprints[0]).toMatch(
     /^([A-F0-9]{2}:){31}[A-F0-9]{2}$/,
   );
+  const previous = await request.get("/downloads/menchat-1.0.0.apk", { maxRedirects: 0 });
+  expect(previous.status()).toBe(307);
+  expect(previous.headers().location).toBe("/downloads/menchat-1.0.1.apk");
   await page.goto("/entrar");
   await page
     .getByRole("button", { name: "Baixar app Android", exact: true })
     .click();
   await expect(
     page.getByRole("link", { name: /Baixar APK Android/ }),
-  ).toHaveAttribute("download", "menchat-1.0.0.apk");
+  ).toHaveAttribute("download", "menchat-1.0.1.apk");
 });
 test("push exige identidade e protege requisições de outro site", async ({
   request,

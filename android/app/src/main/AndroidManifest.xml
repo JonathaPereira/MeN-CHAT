@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <application android:allowBackup="false" android:label="MenChat" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:usesCleartextTraffic="false" android:supportsRtl="true">
+    <application android:manageSpaceActivity="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity" android:allowBackup="false" android:label="MenChat" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:usesCleartextTraffic="false" android:supportsRtl="true">
         <meta-data android:name="asset_statements" android:resource="@string/asset_statements" />
         <activity android:name="com.google.androidbrowserhelper.trusted.LauncherActivity" android:exported="true">
             <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL" android:value="https://men-chat.vercel.app/conta/chat" />
@@ -13,6 +13,9 @@
                 <category android:name="android.intent.category.DEFAULT" /><category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="men-chat.vercel.app" />
             </intent-filter>
+        </activity>
+        <activity android:name="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <meta-data android:name="android.support.customtabs.trusted.MANAGE_SPACE_URL" android:value="https://men-chat.vercel.app" />
         </activity>
         <activity android:name="com.google.androidbrowserhelper.trusted.NotificationPermissionRequestActivity" android:exported="false" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <service android:name="com.google.androidbrowserhelper.trusted.DelegationService" android:exported="true">

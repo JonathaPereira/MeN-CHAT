@@ -11,6 +11,13 @@ const localAddresses = Object.values(networkInterfaces())
   .map((entry) => entry.address);
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return ["", ".sha256"].map((suffix) => ({
+      source: `/downloads/menchat-1.0.0.apk${suffix}`,
+      destination: `/downloads/menchat-1.0.1.apk${suffix}`,
+      permanent: false,
+    }));
+  },
   async headers() {
     return [
       {

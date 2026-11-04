@@ -1,6 +1,6 @@
 # Android, APK e notificações
 
-O APK MenChat 1.0.0 usa Trusted Web Activity e Android Browser Helper oficial, sobre a publicação HTTPS. Requer Android 8 ou posterior e Chrome atualizado; utiliza as mesmas contas, conversas e recursos da web. Não precisa copiar dados entre duas versões. A atualização das telas vem do site; mudanças no pacote Android exigem instalar um APK com versão maior e a mesma assinatura.
+O APK MenChat 1.0.1 usa Trusted Web Activity e Android Browser Helper oficial, sobre a publicação HTTPS. Requer Android 8 ou posterior e Chrome atualizado; utiliza as mesmas contas, conversas e recursos da web. Não precisa copiar dados entre duas versões. A atualização das telas vem do site; mudanças no pacote Android exigem instalar um APK com versão maior e a mesma assinatura.
 
 ## Instalação
 
@@ -34,12 +34,18 @@ O service worker mantém navegação pela rede, sem armazenar conversas, mídia 
 
 ## Compilar e manter a assinatura
 
-Projeto Gradle em `android/`, Java 21, Android SDK 36 e Build Tools 36.0.0. Configure `ANDROID_HOME`. Use as variáveis privadas `MENCHAT_KEYSTORE` (caminho absoluto), `MENCHAT_STORE_PASSWORD`, `MENCHAT_KEY_PASSWORD` e `MENCHAT_KEY_ALIAS` (`menchat`), e execute `./gradlew assembleRelease` dentro de `android/` (Windows: `gradlew.bat assembleRelease`). Nunca grave valores em `build.gradle`, GitHub ou no APK.
+Projeto Gradle em `android/`, JDK 21 (com compilador `javac`), Android SDK 36 e Build Tools 36.0.0. Configure `ANDROID_HOME`. Use as variáveis privadas `MENCHAT_KEYSTORE` (caminho absoluto), `MENCHAT_STORE_PASSWORD`, `MENCHAT_KEY_PASSWORD` e `MENCHAT_KEY_ALIAS` (`menchat`), e execute `./gradlew assembleRelease` dentro de `android/` (Windows: `gradlew.bat assembleRelease`). Nunca grave valores em `build.gradle`, GitHub ou no APK.
 
-O APK assinado sai em `android/app/build/outputs/apk/release/app-release.apk`; após verificar assinatura e permissões, publique em `public/downloads/menchat-1.0.0.apk` e atualize versão/checksum. A assinatura deve corresponder à impressão SHA-256 em `public/.well-known/assetlinks.json`.
+O APK assinado sai em `android/app/build/outputs/apk/release/app-release.apk`; após verificar assinatura e permissões, publique em `public/downloads/menchat-1.0.1.apk` e atualize versão/checksum. A assinatura deve corresponder à impressão SHA-256 em `public/.well-known/assetlinks.json`.
 
 O backup privado da assinatura é entregue separadamente ao proprietário. Guarde o arquivo fora do repositório, com cópia segura. Perder a chave impede atualizar os APKs instalados; divulgar a chave permite falsificar atualizações. O repositório contém somente a impressão pública do certificado e o APK.
 
 ## Verificação
 
 Lint, tipos, build web, testes de regras e de navegador; PostgreSQL descartável com isolamento da fila, bloqueio de terceiros, controle de lease, silenciamento e remoção. APK compilado e assinatura/permissões conferidas com Android Build Tools. Os testes de câmera usam dispositivo sintético, e os de push não comprovam entrega real pelo serviço externo. A conferência final no Android físico e no Supabase/Vercel depende da configuração acima.
+
+## Correção de abertura — 1.0.1
+
+A versão 1.0.0 omitia a declaração de `ManageDataLauncherActivity`, usada pela biblioteca ao configurar o atalho de dados do site. O Android encerrava o app com `IllegalArgumentException: Component class ... does not exist`. A 1.0.1 registra esse componente e seus metadados, mantendo a mesma assinatura e aumentando o versionCode para 2. Instale por cima da anterior, sem desinstalar. Não exige SQL nem chaves novas.
+
+O link antigo do site redireciona para o APK corrigido. O artefato 1.0.0 foi retirado da pasta pública da versão atual. `./gradlew testDebugUnitTest` executa testes de abertura e do componente no Android 15/16 simulado por Robolectric; isso complementa a compilação, sem substituir a conferência no Poco físico.
