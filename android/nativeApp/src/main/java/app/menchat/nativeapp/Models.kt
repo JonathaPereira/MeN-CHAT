@@ -17,6 +17,7 @@ data class Conversation(
     val canSend: Boolean,
     val preview: String,
     val unread: Int,
+    val lastAt: String? = null,
 )
 
 data class Message(

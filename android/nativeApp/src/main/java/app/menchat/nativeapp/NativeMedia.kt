@@ -1,0 +1,203 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
+package app.menchat.nativeapp
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import java.net.URL
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+@Composable
+internal fun NativeMedia(model: MainModel, id: String) {
+    var media by remember(id) { mutableStateOf<Media?>(null) }
+    var url by remember(id) { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val audio by model.audio.state.collectAsState()
+    val save =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument("application/octet-stream")
+        ) { target ->
+            val item = media
+            if (target != null && item != null)
+                scope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            val source = model.gateway.signed(item)
+                            URL(source)
+                                .openConnection()
+                                .apply {
+                                    connectTimeout = 20000
+                                    readTimeout = 20000
+                                }
+                                .getInputStream()
+                                .use { input ->
+                                    context.contentResolver.openOutputStream(target)?.use { output
+                                        ->
+                                        input.copyTo(output)
+                                    }
+                                }
+                        }
+                    } catch (cancel: CancellationException) {
+                        throw cancel
+                    } catch (_: Exception) {
+                        model.error("Não foi possível salvar o anexo.")
+                    }
+                }
+        }
+    LaunchedEffect(id) {
+        try {
+            withContext(Dispatchers.IO) { model.gateway.media(id) }
+                .also {
+                    media = it
+                    if (it.kind == "image")
+                        url = withContext(Dispatchers.IO) { model.gateway.signed(it) }
+                }
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (_: Exception) {
+            model.error("Anexo indisponível.")
+        }
+    }
+    val item = media
+    if (item == null) {
+        Text("Carregando anexo…", style = MaterialTheme.typography.bodySmall)
+        return
+    }
+    if (item.kind == "image" && url != null)
+        AsyncImage(
+            model =
+                ImageRequest.Builder(context)
+                    .data(url)
+                    .diskCachePolicy(CachePolicy.DISABLED)
+                    .build(),
+            contentDescription = "Foto enviada",
+            modifier =
+                Modifier.fillMaxWidth().heightIn(max = 250.dp).clip(RoundedCornerShape(10.dp)),
+        )
+    if (item.kind == "audio") {
+        AudioTransport(
+            audio,
+            id,
+            onToggle = {
+                scope.launch {
+                    try {
+                        if (audio.id == id && url != null) model.audio.toggle(id, url!!)
+                        else {
+                            val source = withContext(Dispatchers.IO) { model.gateway.signed(item) }
+                            url = source
+                            model.audio.toggle(id, source)
+                        }
+                    } catch (cancel: CancellationException) {
+                        throw cancel
+                    } catch (_: Exception) {
+                        model.error("Áudio indisponível.")
+                    }
+                }
+            },
+            onSeek = model.audio::seek,
+            onDownload = { save.launch(item.name) },
+        )
+    } else if (item.kind != "image")
+        Text(
+            if (item.kind == "video") "Vídeo" else item.name,
+            maxLines = 2,
+            style = MaterialTheme.typography.bodySmall,
+        )
+    if (item.kind != "audio")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            ChatIconButton(Glyph.Download, "Baixar anexo", onClick = { save.launch(item.name) })
+        }
+}
+
+@Composable
+internal fun AudioTransport(
+    audio: AudioState,
+    id: String,
+    onToggle: () -> Unit,
+    onSeek: (Float) -> Unit,
+    onDownload: () -> Unit,
+) {
+    val p = LocalChatPalette.current
+    val active = audio.id == id
+    Row(
+        Modifier.widthIn(min = 220.dp).fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (active && audio.loading)
+            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            }
+        else
+            ChatIconButton(
+                if (active && audio.playing) Glyph.Pause else Glyph.Play,
+                if (active && audio.playing) "Pausar áudio" else "Reproduzir áudio",
+                onClick = onToggle,
+            )
+        Column(Modifier.weight(1f)) {
+            Slider(
+                value =
+                    if (active)
+                        audio.elapsed
+                            .toFloat()
+                            .coerceIn(0f, audio.duration.coerceAtLeast(1).toFloat())
+                    else 0f,
+                onValueChange = onSeek,
+                valueRange = 0f..(if (active) audio.duration.coerceAtLeast(1).toFloat() else 1f),
+                enabled = active && audio.duration > 0,
+                modifier = Modifier.height(32.dp),
+                thumb = {
+                    Box(
+                        Modifier.size(12.dp)
+                            .background(if (active) p.accent else p.muted, CircleShape)
+                    )
+                },
+                track = { slider ->
+                    SliderDefaults.Track(
+                        sliderState = slider,
+                        modifier = Modifier.height(4.dp),
+                        enabled = active && audio.duration > 0,
+                        colors =
+                            SliderDefaults.colors(
+                                activeTrackColor = p.accent,
+                                inactiveTrackColor = p.muted.copy(alpha = .2f),
+                            ),
+                        drawStopIndicator = null,
+                        thumbTrackGapSize = 0.dp,
+                    )
+                },
+                colors =
+                    SliderDefaults.colors(
+                        thumbColor = p.accent,
+                        activeTrackColor = p.accent,
+                        inactiveTrackColor = p.muted.copy(alpha = .2f),
+                    ),
+            )
+            Text(
+                if (active)
+                    "${audio.elapsed/60000}:${(audio.elapsed/1000%60).toString().padStart(2,'0')}"
+                else "Áudio",
+                style = MaterialTheme.typography.labelSmall,
+                color = p.muted,
+            )
+        }
+        ChatIconButton(Glyph.Download, "Baixar áudio", onClick = onDownload)
+    }
+}

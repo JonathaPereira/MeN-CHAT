@@ -10,11 +10,12 @@ Objetivo solicitado: aproximar o Android da experiência completa da web, preser
 - A conferência de áudio usa uma leitura adicional de até 10 MB por player ao ouvir, sem Cache Storage ou persistência em disco pela aplicação. Não repetir por polling nem por pausa/reprodução após verificação; abortar leitura ao desmontar. Se o formato não puder ser conferido, manter reprodução e duração desconhecida.
 - Critério físico: abrir o privado e o grupo existentes, enviar texto/áudio, reabrir e conferir exclusão/ocultação. No site, ouvir o áudio afetado e conferir duração, pausa, busca e velocidade.
 
-## 2. Interface Android baseada na web
+## 2. Interface Android baseada na web — entrega 2.1.0
 
 - Reusar marca, paleta verde, tipografia, proporções de balões, hierarquia e menus leves da web como referência visual.
 - Substituir a aparência genérica de cartões/formulários e emojis usados como ícones por componentes e ícones coerentes com o chat.
-- Lista e conversa adaptadas ao celular; duas colunas quando houver espaço. Clipe, câmera, engrenagem e microfone à direita visíveis. Teclado, barras do sistema, rotação, fontes grandes e toque confortável.
+- Lista e conversa adaptadas ao celular; duas colunas quando houver espaço. Engrenagem visível e microfone à direita; clipe/câmera entram com as ações reais da etapa 3. Teclado, barras do sistema, rotação, fontes grandes e toque confortável.
+- Implementação e capturas: [Android 2.1](android-interface-2.1.md). A conferência no Poco continua necessária.
 - Perfil, busca por código, respostas, exclusão, leituras/digitação e não lidas preservados durante navegação.
 - Critério: revisão visual em tamanhos pequenos/grandes, claro/escuro e Android físico, sem regressão dos envios.
 

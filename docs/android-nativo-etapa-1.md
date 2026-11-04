@@ -1,12 +1,14 @@
 # Android nativo — etapa 1
 
+A interface atual é a [versão 2.1.0](android-interface-2.1.md). As seções abaixo também preservam o histórico das entregas 2.0.x.
+
 A partir do APK 2.0.0, o MenChat tem uma interface Android própria em Kotlin e Jetpack Compose, no módulo `android/nativeApp`. Não usa WebView, Trusted Web Activity ou Chrome para abrir o chat. O módulo antigo `android/app` fica preservado como histórico da integração TWA.
 
 ## Usar
 
 1. Aguarde o deploy da Vercel ficar Ready: esta entrega publica `/api/mobile/config`, que fornece exclusivamente a URL/chave publicável já usadas pelo site.
-2. Baixe `menchat-2.0.2.apk` pelo botão **Baixar app Android** no site ou pelo GitHub.
-3. Instale como atualização do MenChat existente. O pacote e a assinatura são os mesmos; o versionCode sobe para 5.
+2. Baixe `menchat-2.1.0.apk` pelo botão **Baixar app Android** no site ou pelo GitHub.
+3. Instale como atualização do MenChat existente. O pacote e a assinatura são os mesmos; o versionCode sobe para 6.
 4. Entre com o e-mail e a senha da sua conta já ativada. O login do Chrome não é transferido para o app. Nenhum segredo administrativo deve ser colocado no APK.
 
 Não exige nova migração SQL: usa os contratos existentes, especialmente as migrações 5–7. Não execute comandos de chaves ou SQL novamente para instalar este APK.
@@ -35,7 +37,7 @@ A versão web preserva todos os seus recursos. Não há cadastro público nem de
 
 JDK 21 completo, Android SDK/Build Tools 36.0.0 e assinatura privada já existente. No diretório `android`, execute `./gradlew :nativeApp:testDebugUnitTest :nativeApp:assembleRelease` com as variáveis de assinatura descritas no guia anterior. Saída: `nativeApp/build/outputs/apk/release/nativeApp-release.apk`.
 
-Os testes HTTP usam serviços locais simulados para verificar identidade, envio do token da conta, renovação e envios idempotentes. Robolectric Android 15/16 verifica a inicialização da Activity nativa sem dependência do helper do navegador. Conferir no APK final: pacote `app.menchat.android`, versionCode 5, assinatura anterior, Activity nativa e alinhamento de bibliotecas para páginas de 16 KB. O alias de lançamento antigo aponta para a Activity Kotlin para preservar ícones fixados; não instancia o helper nem o Chrome.
+Os testes HTTP usam serviços locais simulados para verificar identidade, envio do token da conta, renovação e envios idempotentes. Robolectric Android 15/16 verifica a inicialização da Activity nativa sem dependência do helper do navegador. Conferir no APK final: pacote `app.menchat.android`, versionCode 6, assinatura anterior, Activity nativa e alinhamento de bibliotecas para páginas de 16 KB. O alias de lançamento antigo aponta para a Activity Kotlin para preservar ícones fixados; não instancia o helper nem o Chrome.
 
 Testes simulados não validam o Supabase hospedado nem substituem câmera/microfone e navegação num Android físico. A próxima etapa deve ser autorizada separadamente; não anunciar paridade completa com a web.
 

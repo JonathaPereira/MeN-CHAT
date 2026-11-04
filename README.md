@@ -35,6 +35,7 @@ Guias:
 - [Primeiro acesso administrativo](docs/primeiro-acesso-real.md).
 - [Configuração única de convites](docs/convites-pelo-aplicativo.md).
 - [Grupos, Storage e perfil — migração 5](docs/chat-completo.md).
+- [Android 2.1 — nova interface nativa](docs/android-interface-2.1.md).
 - [Android nativo Kotlin — etapa 1](docs/android-nativo-etapa-1.md).
 - [Roteiro de paridade Android/web, notificações e chamadas](docs/roteiro-paridade-android.md).
 - [APK Android e push — migração 8](docs/android-e-notificacoes.md).
@@ -45,7 +46,7 @@ Rotas principais: `/entrar`, `/conta/chat`, `/conta/perfil`, `/conta/configuraco
 
 ## Instalar no Android
 
-Abra a publicação HTTPS no Chrome e use ⋮ → Instalar aplicativo / Adicionar à tela inicial. O MenChat também mostra um botão de instalação quando o navegador permitir. O app instalado exige internet; o worker não armazena conversas, tokens ou anexos em Cache Storage. O botão **Baixar app Android** oferece o APK Kotlin 2.0.2 (primeira etapa nativa: login, conversas, texto e áudio) e a alternativa PWA. O nativo não usa Chrome/WebView; ainda não tem paridade completa com a web, nem push Android em segundo plano. Web Push com o site/PWA fechado exige a configuração única da migração 8 e das chaves do servidor; consulte o guia Android. Ainda não há publicação na Play Store.
+Abra a publicação HTTPS no Chrome e use ⋮ → Instalar aplicativo / Adicionar à tela inicial. O MenChat também mostra um botão de instalação quando o navegador permitir. O app instalado exige internet; o worker não armazena conversas, tokens ou anexos em Cache Storage. O botão **Baixar app Android** oferece o APK Kotlin 2.1.0 (primeira etapa nativa: login, conversas, texto e áudio) e a alternativa PWA. O nativo não usa Chrome/WebView; ainda não tem paridade completa com a web, nem push Android em segundo plano. Web Push com o site/PWA fechado exige a configuração única da migração 8 e das chaves do servidor; consulte o guia Android. Ainda não há publicação na Play Store.
 
 ## Privacidade e limites
 

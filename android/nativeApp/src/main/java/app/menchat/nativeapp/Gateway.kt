@@ -222,6 +222,7 @@ internal class Gateway(
                 it.optBoolean("can_send"),
                 it.optional("last_body") ?: "Comece a conversar",
                 it.optInt("unread_count"),
+                it.optional("last_at"),
             )
         }
 
