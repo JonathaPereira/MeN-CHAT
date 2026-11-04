@@ -154,6 +154,7 @@ export const RealMedia = memo(function RealMedia({
               </button>
             ) : url && item.kind === "audio" ? (
               <AudioPlayer
+                key={id}
                 url={url}
                 rate={settings.playbackRate}
                 onExpired={() => source()}

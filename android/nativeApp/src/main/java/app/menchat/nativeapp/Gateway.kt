@@ -252,7 +252,7 @@ internal class Gateway(
                         "menchat_messages",
                         mapOf(
                             "thread_id" to "eq.$thread",
-                            "id" to "in(${part.joinToString(",")})",
+                            "id" to "in.(${part.joinToString(",")})",
                             "select" to "id,deleted_at",
                         ),
                     )

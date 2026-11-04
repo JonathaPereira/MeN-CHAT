@@ -1,8 +1,10 @@
 package app.menchat.nativeapp
 
 import okhttp3.OkHttpClient
+import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.*
@@ -115,6 +117,42 @@ class GatewayTest {
             assertEquals("Bearer actor-token", request.getHeader("Authorization"))
             assertFalse(data.has("sender_id"))
         }
+    }
+
+    @Test
+    fun visibilityFilterUsesPostgrestOperatorSyntaxAndKeepsDeletedOrHiddenMessagesPrivate() {
+        gateway.credentials = Credentials("actor-token", "refresh", 9000)
+        val thread = "20000000-0000-4000-8000-000000000002"
+        val ids = (1..3).map { "30000000-0000-4000-8000-${it.toString().padStart(12, '0')}" }
+        server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse {
+                    val filter = request.requestUrl!!.queryParameter("id")
+                    // PostgREST requires a dot between the operator and its value.
+                    if (filter != "in.(${ids.joinToString(",")})")
+                        return MockResponse()
+                            .setResponseCode(400)
+                            .setBody("""{"code":"PGRST100"}""")
+                    assertEquals("eq.$thread", request.requestUrl!!.queryParameter("thread_id"))
+                    assertEquals("id,deleted_at", request.requestUrl!!.queryParameter("select"))
+                    assertEquals("Bearer actor-token", request.getHeader("Authorization"))
+                    return MockResponse()
+                        .setBody(
+                            """[{"id":"${ids[0]}","deleted_at":null},{"id":"${ids[1]}","deleted_at":"2026-01-01T12:00:00Z"}]"""
+                        )
+                }
+            }
+        val messages =
+            ids.mapIndexed { i, id ->
+                Message(id, i.toLong(), actor, "Privada", "", "attachment", false, "reply")
+            }
+        val visible = gateway.reconcile(thread, messages)
+        assertEquals(listOf(ids[0], ids[1]), visible.map { it.id })
+        assertEquals("Privada", visible[0].text)
+        assertTrue(visible[1].deleted)
+        assertNull(visible[1].attachment)
+        assertNull(visible[1].reply)
+        assertEquals("Mensagem apagada.", visible[1].text)
     }
 
     @Test

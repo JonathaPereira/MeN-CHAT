@@ -15,11 +15,14 @@ internal fun safeApiCode(value: String?): String? =
         it in
             setOf(
                 "42501",
+                "22P02",
+                "42703",
                 "23514",
                 "23503",
                 "23505",
                 "P0001",
                 "PGRST202",
+                "PGRST100",
                 "PGRST204",
                 "PGRST301",
                 "PGRST116",
