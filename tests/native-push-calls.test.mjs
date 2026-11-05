@@ -75,7 +75,7 @@ test("TURN exige configuração válida e emite credencial temporária por conta
       '["turn:turn.example.test:3478?transport=udp","turns:turn.example.test:5349?transport=tcp"]',
     MENCHAT_TURN_SECRET: "fixture-" + "x".repeat(40),
   };
-  assert.equal(callsReady({}), false);
+  assert.equal(callsReady({}), true);
   assert.equal(callsReady(env), true);
   assert.equal(
     turnUrls({ ...env, MENCHAT_TURN_URLS: '["https://turn.example.test"]' })
@@ -97,4 +97,17 @@ test("TURN exige configuração válida e emite credencial temporária por conta
   );
   assert.equal(JSON.stringify(config).includes(env.MENCHAT_TURN_SECRET), false);
   assert.throws(() => iceConfiguration(env, "actor-inválido", now));
+});
+
+test("chamadas diretas funcionam sem TURN e podem ser desativadas pelo administrador", () => {
+  const actor = "10000000-0000-4000-8000-000000000001";
+  for (const env of [{}, {MENCHAT_TURN_SECRET: "incompleto"}, {MENCHAT_TURN_URLS: "invalid"}]) {
+    const config = iceConfiguration(env, actor);
+    assert.deepEqual(config.iceServers, [{urls: ["stun:stun.l.google.com:19302"]}]);
+    assert.equal(config.maxParticipants, 4);
+    assert.equal(JSON.stringify(config).includes("credential"), false);
+  }
+  assert.equal(callsReady({MENCHAT_CALLS_ENABLED: " false "}), false);
+  assert.throws(() => iceConfiguration({MENCHAT_CALLS_ENABLED: "false"}, actor));
+  assert.throws(() => iceConfiguration({}, "invalid"));
 });

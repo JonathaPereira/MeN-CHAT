@@ -28,6 +28,7 @@ const child = spawn(
       MENCHAT_FIREBASE_API_KEY: "",
       MENCHAT_FIREBASE_CLIENT_EMAIL: "",
       MENCHAT_FIREBASE_PRIVATE_KEY: "",
+      MENCHAT_CALLS_ENABLED: "false",
       MENCHAT_TURN_URLS: "",
       MENCHAT_TURN_SECRET: "",
       NODE_OPTIONS: [process.env.NODE_OPTIONS, `--import=${preload}`]

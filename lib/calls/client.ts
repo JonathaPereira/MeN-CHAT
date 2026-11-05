@@ -582,7 +582,7 @@ export class CallClient {
     peer.restarts++;
     if (this.actor < id) void this.offer(id, true);
     else this.enqueue(id, "restart", {});
-    this.change({ error: "Tentando reconectar a chamada…" });
+    this.change({ error: "Tentando reconectar. Se não conectar, teste outra rede; esta rede pode exigir retransmissão de chamadas." });
   }
   private async offer(id: string, restart = false) {
     const peer = this.peers.get(id);

@@ -2,6 +2,12 @@
 
 Atualização do APK Kotlin/Compose, mantendo `app.menchat.android`, a assinatura e os dados da 2.2.0. Instale por cima, sem desinstalar. O usuário confirmou o funcionamento da **2.2.0** no aparelho; isso não valida automaticamente esta versão. A web continua funcionando com as mesmas contas e conversas.
 
+## Atualização: ativação simplificada das chamadas
+
+Chamadas agora usam conexão direta WebRTC/STUN por padrão, sem contratar VPS, configurar TURN ou cadastrar chaves novas. Aplique as migrações 9–10 no Supabase se ainda faltarem, publique o código atualizado na Vercel e feche/reabra o APK 3.0. Não precisa baixar outro APK: a configuração vem do servidor. Teste entre duas contas com o app aberto, permitindo microfone/câmera. Firebase continua necessário apenas para avisar com o APK fechado.
+
+Algumas redes impedem conexão direta. Nesses casos, teste outro Wi-Fi/rede móvel; TURN gerenciado compatível pode ser acrescentado depois. As variáveis TURN abaixo são opcionais e preservam a retransmissão quando configuradas. `MENCHAT_CALLS_ENABLED=false` desativa chamadas; por padrão estão habilitadas. STUN não altera Auth/RLS, a sinalização privada nem o limite de quatro participantes. Não há comprovação de chamadas no Poco ou em redes externas nesta alteração.
+
 ## O que muda
 
 - Engrenagem → **Aparência**: sistema/claro/escuro e tamanho de texto.
@@ -13,7 +19,7 @@ Atualização do APK Kotlin/Compose, mantendo `app.menchat.android`, a assinatur
 - Câmera, fotos/vídeos, documentos, perfil/foto, gravação com dois toques, digitação/leitura, não lidas e apagar para mim/todos preservados. O microfone fica à direita.
 - Chamadas de voz/vídeo na web e no Android: atender/recusar, microfone, câmera, alternar câmera, encerrar e minimizar. No Android, saída de áudio e serviço de chamada em andamento; captura começa somente após a ação e permissão da pessoa. Chamada em grupo limitada a **quatro participantes simultâneos**, em malha P2P com TURN quando necessário. Não é SFU, telefonia do sistema, compartilhamento de tela ou gravação.
 
-Push e chamadas estão implementados, mas **não são ativados pela simples instalação do APK**: exigem a configuração abaixo. Não há credenciais de produção no ambiente de desenvolvimento, nem comprovação de entrega FCM ou chamada Android física nesta entrega.
+Push exige configuração Firebase. Chamadas diretas exigem as migrações e o deployment atualizado; TURN é opcional, conforme a atualização acima. Não há credenciais de produção no ambiente de desenvolvimento, nem comprovação de entrega FCM ou chamada Android física nesta entrega.
 
 ## 1. Preparar o Supabase (primeiro passo)
 
@@ -58,9 +64,9 @@ A conta deve pertencer ao mesmo projeto e ter permissão para enviar pelo **FCM 
 
 Avisos de fundo mostram mensagem genérica, sem nome, texto ou mídia. Ao tocar, o app revalida sessão e participação antes de abrir a conversa. Sair da conta desassocia o dispositivo e revoga sua sessão de push. O som respeita canais, volume, Não Perturbe e escolhas do Android; não recriamos canais para desfazer o silêncio definido pelo usuário. “Forçar parada” e políticas de bateria podem bloquear avisos até reabrir. No Poco/HyperOS, confira também permissões de notificação, execução em segundo plano e economia de bateria do MenChat.
 
-## 3. Configurar chamadas (uma vez)
+## 3. Opcional: acrescentar TURN para redes que bloqueiam conexão direta
 
-É necessário um **servidor TURN com autenticação REST temporária HMAC-SHA1**, por exemplo coturn em um servidor próprio. STUN sozinho falha em parte das redes móveis. A Vercel hospeda a aplicação/sinalização HTTP, mas não hospeda o servidor UDP/TURN. O projeto não provisiona um servidor externo automaticamente.
+Para acrescentar retransmissão, use um **servidor TURN com autenticação REST temporária HMAC-SHA1**, por exemplo coturn em um servidor próprio. STUN sozinho falha em parte das redes móveis. A Vercel hospeda a aplicação/sinalização HTTP, mas não hospeda o servidor UDP/TURN. O projeto não provisiona um servidor externo automaticamente.
 
 Peça ao provedor/administrador do TURN estes dados: domínio, portas/transporte e **segredo compartilhado REST** com pelo menos 32 caracteres. No coturn, correspondem a `use-auth-secret` e `static-auth-secret`; configure realm, certificado TLS válido, portas de escuta e intervalo de retransmissão no firewall. Bloqueie acesso a redes privadas/loopback conforme a configuração oficial do provedor. Não use credenciais estáticas de exemplo nem um servidor aberto.
 
