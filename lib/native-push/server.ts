@@ -1,7 +1,7 @@
 import "server-only";
 import { createSign, createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { nativePushReady, nativePayload, parseNativeJob } from "./config";
+import { nativePushReady, nativePayload, parseNativeJob, notificationPreview } from "./config";
 let cached: { identity: string; token: string; expires: number } | undefined;
 let acquiring: Promise<string> | undefined;
 async function accessToken(): Promise<string> {
@@ -80,6 +80,11 @@ export async function deliverNativePush(
         } catch {
           return;
         }
+        let preview = null;
+        if (job.kind === "message") {
+          const response = await client.rpc("menchat_native_preview", {p_event:job.id,p_user:job.recipient,p_thread:job.thread});
+          if (!response.error) preview = notificationPreview(response.data);
+        }
         let result = "retry";
         try {
           const response = await fetch(
@@ -90,7 +95,7 @@ export async function deliverNativePush(
                 Authorization: `Bearer ${authorization}`,
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify(nativePayload(job)),
+              body: JSON.stringify(nativePayload(job, preview)),
               redirect: "error",
               cache: "no-store",
               signal: AbortSignal.timeout(5000),

@@ -65,17 +65,42 @@ internal class NativeNotifications(private val context: Context) {
         }
     }
 
+    fun callChannel(sound: Boolean, vibration: Boolean): String {
+        val id = "menchat_calls_v1_${sound}_${vibration}"
+        if (manager.getNotificationChannel(id) == null) {
+            manager.createNotificationChannel(
+                NotificationChannel(id, "Chamadas MenChat", NotificationManager.IMPORTANCE_HIGH)
+                    .apply {
+                        vibrationPattern = longArrayOf(0, 700, 180, 700, 180, 1000, 500)
+                        enableVibration(vibration)
+                        setSound(
+                            if (sound) soundUri() else null,
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                                .build(),
+                        )
+                        lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+                    }
+            )
+        }
+        return id
+    }
+
     fun channel(sound: Boolean, vibration: Boolean) =
         "menchat_messages_v1_${if(sound)"sound" else "quiet"}_${if(vibration)"vibrate" else "still"}"
 
     private fun soundUri() =
         Uri.parse("android.resource://${context.packageName}/${R.raw.menchat_ping}")
 
-    fun sound(force: Boolean = false) {
+    fun sound(force: Boolean = false, call: Boolean = false) {
         if (!force) {
             val options = preferences.read(preferences.store.getString("activeActor", null))
             channels()
-            val channel = manager.getNotificationChannel(channel(options.sound, options.vibration))
+            val channel =
+                manager.getNotificationChannel(
+                    if (call) callChannel(options.sound, options.vibration)
+                    else channel(options.sound, options.vibration)
+                )
             if (
                 !manager.areNotificationsEnabled() ||
                     channel?.importance == NotificationManager.IMPORTANCE_NONE ||
@@ -99,10 +124,14 @@ internal class NativeNotifications(private val context: Context) {
     }
 
     @Suppress("DEPRECATION")
-    fun vibrate() {
+    fun vibrate(call: Boolean = false) {
         val options = preferences.read(preferences.store.getString("activeActor", null))
         channels()
-        val channel = manager.getNotificationChannel(channel(options.sound, options.vibration))
+        val channel =
+            manager.getNotificationChannel(
+                if (call) callChannel(options.sound, options.vibration)
+                else channel(options.sound, options.vibration)
+            )
         if (
             !manager.areNotificationsEnabled() ||
                 channel?.importance == NotificationManager.IMPORTANCE_NONE ||
@@ -122,8 +151,24 @@ internal class NativeNotifications(private val context: Context) {
         runCatching {
             if (vibrator.hasVibrator())
                 vibrator.vibrate(
-                    VibrationEffect.createOneShot(35, VibrationEffect.DEFAULT_AMPLITUDE)
+                    if (call)
+                        VibrationEffect.createWaveform(
+                            longArrayOf(0) + LongArray(80) { if (it % 2 == 0) 700L else 350L },
+                            -1,
+                        )
+                    else VibrationEffect.createOneShot(35, VibrationEffect.DEFAULT_AMPLITUDE)
                 )
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    fun stopVibration() {
+        runCatching {
+            val vibrator =
+                if (Build.VERSION.SDK_INT >= 31)
+                    context.getSystemService(VibratorManager::class.java).defaultVibrator
+                else context.getSystemService(Vibrator::class.java)
+            vibrator.cancel()
         }
     }
 
@@ -167,7 +212,11 @@ internal class NativeNotifications(private val context: Context) {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         val notification =
-            NotificationCompat.Builder(context, channel(options.sound, options.vibration))
+            NotificationCompat.Builder(
+                    context,
+                    if (call == null) channel(options.sound, options.vibration)
+                    else callChannel(options.sound, options.vibration),
+                )
                 .setSmallIcon(R.drawable.ic_notification)
                 .setColor(0xFF1B715A.toInt())
                 .setContentTitle(title)
@@ -182,6 +231,7 @@ internal class NativeNotifications(private val context: Context) {
                 )
                 .setTimeoutAfter(if (call == null) 86_400_000 else 45_000)
                 .build()
+        if (call != null) notification.flags = notification.flags or Notification.FLAG_INSISTENT
         manager.notify(key, key.hashCode(), notification)
     }
 

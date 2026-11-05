@@ -58,7 +58,24 @@ export function parseNativeJob(raw: unknown): NativePushJob {
     throw new Error("job");
   return value as NativePushJob;
 }
-export function nativePayload(job: NativePushJob) {
+export function notificationPreview(value: unknown): {title: string; body: string} | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  if (typeof row.title !== "string" || typeof row.body !== "string" || !row.title.trim()) return null;
+  const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+  // Match Android UTF-16 bounds without cutting an emoji surrogate pair.
+  const clip = (text: string, limit: number) => {
+    let result = "";
+    for (const symbol of text) {
+      if (result.length + symbol.length > limit) break;
+      result += symbol;
+    }
+    return result;
+  };
+  const body = clean(row.body), summary = clip(body,160);
+  return { title: clip(clean(row.title),60), body: summary + (body.length>summary.length ? "…" : "") };
+}
+export function nativePayload(job: NativePushJob, preview: {title: string; body: string} | null = null) {
   return {
     message: {
       token: job.token,
@@ -68,6 +85,7 @@ export function nativePayload(job: NativePushJob) {
         thread: job.thread,
         kind: job.kind,
         stamp: job.stamp,
+        ...(job.kind === "message" && preview ? {title: preview.title, body: preview.body} : {}),
       },
       android: {
         priority: "HIGH",

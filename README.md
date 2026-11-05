@@ -28,10 +28,11 @@ Copie `.env.example` para `.env.local` e preencha URL/chave publicável do seu S
 
 ## Banco e publicação
 
-Migrações em `supabase/migrations/`, versões 1–10, aplicadas uma vez em ordem. Preserve arquivos já aplicados; mudanças posteriores usam novas migrações. Primeiro administrador é definido pelo proprietário, sem endpoint público de bootstrap.
+Migrações em `supabase/migrations/`, versões 1–11, aplicadas uma vez em ordem. Preserve arquivos já aplicados; mudanças posteriores usam novas migrações. Primeiro administrador é definido pelo proprietário, sem endpoint público de bootstrap.
 
 Guias:
 
+- [Android 3.0.1 — prévias e vibração de chamadas](docs/notificacoes-3.0.1.md).
 - [Android 3.0 — recursos, submenus, som, Firebase e chamadas](docs/android-3.0.md).
 - [Primeiro acesso administrativo](docs/primeiro-acesso-real.md).
 - [Configuração única de convites](docs/convites-pelo-aplicativo.md).
@@ -48,7 +49,7 @@ Rotas principais: `/entrar`, `/conta/chat`, `/conta/perfil`, `/conta/configuraco
 
 ## Instalar no Android
 
-Abra a publicação HTTPS no Chrome e use ⋮ → Instalar aplicativo / Adicionar à tela inicial. O MenChat também mostra um botão de instalação quando o navegador permitir. O app instalado exige internet; o worker não armazena conversas, tokens ou anexos em Cache Storage. O botão **Baixar app Android** oferece o APK Kotlin 3.0.0 e a alternativa PWA. O nativo não usa Chrome/WebView. Inclui grupos, mídia/câmera, perfil, favoritos, menções, emojis/figurinhas, configurações em submenus e som próprio. Push Android e chamadas WebRTC web/Android estão implementados, mas dependem de migrações 9–10; chamadas diretas usam STUN por padrão, TURN é opcional e push Android exige Firebase; consulte o [guia 3.0](docs/android-3.0.md). Não foram ativados ou validados nas contas hospedadas por esta entrega. Instale sobre a versão anterior, preservando a assinatura. Ainda não há publicação na Play Store.
+Abra a publicação HTTPS no Chrome e use ⋮ → Instalar aplicativo / Adicionar à tela inicial. O MenChat também mostra um botão de instalação quando o navegador permitir. O app instalado exige internet; o worker não armazena conversas, tokens ou anexos em Cache Storage. O botão **Baixar app Android** oferece o APK Kotlin 3.0.1 e a alternativa PWA. O nativo não usa Chrome/WebView. Inclui grupos, mídia/câmera, perfil, favoritos, menções, emojis/figurinhas, configurações em submenus e som próprio. Push Android e chamadas WebRTC web/Android estão implementados, mas dependem de migrações 9–10; chamadas diretas usam STUN por padrão, TURN é opcional e push Android exige Firebase; consulte o [guia 3.0](docs/android-3.0.md). Não foram ativados ou validados nas contas hospedadas por esta entrega. Instale sobre a versão anterior, preservando a assinatura. Ainda não há publicação na Play Store.
 
 ## Privacidade e limites
 

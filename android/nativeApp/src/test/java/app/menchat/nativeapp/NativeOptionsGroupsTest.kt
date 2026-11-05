@@ -16,6 +16,30 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class NativeOptionsGroupsTest {
     @Test
+    fun incomingCallsUseDedicatedHighPriorityChannelAndLongVibration() {
+        val context = RuntimeEnvironment.getApplication()
+        val alerts = NativeNotifications(context)
+        val manager = context.getSystemService(android.app.NotificationManager::class.java)
+        org.robolectric.Shadows.shadowOf(context)
+            .grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
+        assertFalse(
+            manager.getNotificationChannel(alerts.callChannel(false, false)).shouldVibrate()
+        )
+        org.robolectric.Shadows.shadowOf(manager).setNotificationsEnabled(true)
+        val id = alerts.callChannel(false, true)
+        val channel = manager.getNotificationChannel(id)
+        assertEquals(android.app.NotificationManager.IMPORTANCE_HIGH, channel.importance)
+        assertTrue(channel.shouldVibrate())
+        assertTrue(channel.vibrationPattern.sum() > 3000)
+        assertNull(channel.sound)
+        alerts.show("thread", "incoming-test", NativeOptions(sound = false), call = "call-id")
+        val notification = manager.activeNotifications.first().notification
+        assertTrue(notification.flags and android.app.Notification.FLAG_INSISTENT != 0)
+        assertEquals(45000L, notification.timeoutAfter)
+        alerts.clear()
+    }
+
+    @Test
     fun preferencesPersistEffectsAndKeepMuteListsSeparateByAccount() {
         val context = RuntimeEnvironment.getApplication()
         val prefs = NativePreferences(context)

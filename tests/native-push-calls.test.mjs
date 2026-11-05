@@ -54,6 +54,10 @@ test("push nativo contém apenas identificação e aviso genérico, nunca texto 
     body: "NÃO PODE VAZAR",
     password: "segredo",
   });
+  const detailed = nativePayload(job, {title:"Ana",body:"Olá"});
+  assert.equal(detailed.message.data.title,"Ana");
+  assert.equal(detailed.message.data.body,"Olá");
+  assert.equal(nativePayload({...job,kind:"call"},{title:"Ana",body:"Olá"}).message.data.body,undefined);
   const payload = nativePayload(job);
   const raw = JSON.stringify(payload);
   assert.equal(raw.includes("NÃO PODE VAZAR"), false);
@@ -110,4 +114,15 @@ test("chamadas diretas funcionam sem TURN e podem ser desativadas pelo administr
   assert.equal(callsReady({MENCHAT_CALLS_ENABLED: " false "}), false);
   assert.throws(() => iceConfiguration({MENCHAT_CALLS_ENABLED: "false"}, actor));
   assert.throws(() => iceConfiguration({}, "invalid"));
+});
+
+test("prévia resume Unicode, remove controles e não transporta campos extras", async () => {
+  const { notificationPreview } = await import("../lib/native-push/config.ts");
+  const preview = notificationPreview({title:" Ana\nOliveira ",body:"💚".repeat(170),token:"never"});
+  assert.equal(preview.title,"Ana Oliveira");
+  assert.equal(preview.body.length,161);
+  assert.equal(preview.body.isWellFormed(),true);
+  assert.equal(preview.body.endsWith("…"),true);
+  assert.deepEqual(Object.keys(preview).sort(),["body","title"]);
+  assert.equal(notificationPreview({title:5,body:"x"}),null);
 });

@@ -141,7 +141,7 @@ internal fun NativeSettings(
                             }
                             SettingToggle("Som MenChat", o.sound) { change(o.copy(sound = it)) }
                             SettingToggle("Vibrar", o.vibration) { change(o.copy(vibration = it)) }
-                            SettingToggle("Prévia nos avisos internos", o.previews) {
+                            SettingToggle("Nome e prévia nas notificações", o.previews) {
                                 change(o.copy(previews = it))
                             }
                             SettingToggle("Avisar somente fora da conversa", o.onlyAway) {
@@ -149,7 +149,7 @@ internal fun NativeSettings(
                             }
                             notifications()
                             Text(
-                                "Notificações em segundo plano usam um aviso genérico, sem texto privado. Volume, silêncio e bateria também seguem as configurações do Android.",
+                                "Com as prévias ativadas, notificações mostram remetente e um resumo da mensagem. Desative para mostrar somente um aviso genérico. Volume, silêncio e bateria também seguem as configurações do Android.",
                                 color = p.muted,
                                 style = MaterialTheme.typography.bodySmall,
                             )

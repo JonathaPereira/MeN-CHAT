@@ -10,7 +10,7 @@ internal data class NativeOptions(
     val inApp: Boolean = true,
     val sound: Boolean = true,
     val vibration: Boolean = true,
-    val previews: Boolean = false,
+    val previews: Boolean = true,
     val onlyAway: Boolean = true,
     val muted: Set<String> = emptySet(),
     val dataSaver: Boolean = false,
@@ -55,7 +55,7 @@ internal class NativePreferences(context: Context) {
             inApp = store.getBoolean("inApp", true),
             sound = store.getBoolean("sound", true),
             vibration = store.getBoolean("vibration", true),
-            previews = store.getBoolean("previews", false),
+            previews = store.getBoolean("previews", true),
             onlyAway = store.getBoolean("onlyAway", true),
             muted =
                 if (actor == null) emptySet()

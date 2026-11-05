@@ -7,7 +7,7 @@ android {
     namespace 'app.menchat.nativeapp'
     compileSdk 36
     buildToolsVersion '36.0.0'
-    defaultConfig { applicationId 'app.menchat.android'; minSdk 26; targetSdk 36; versionCode 8; versionName '3.0.0' }
+    defaultConfig { applicationId 'app.menchat.android'; minSdk 26; targetSdk 36; versionCode 9; versionName '3.0.1' }
     signingConfigs {
         release {
             storeFile file(System.getenv('MENCHAT_KEYSTORE') ?: '../release.jks')

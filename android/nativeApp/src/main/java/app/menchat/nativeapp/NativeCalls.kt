@@ -109,14 +109,18 @@ internal class NativeCalls(
                 val incoming =
                     rows.firstOrNull { it.mine == "joined" }
                         ?: rows.firstOrNull { it.mine == "invited" }
+                if (incoming == null && lastIncoming != null) {
+                    NativeNotifications(context).stopVibration()
+                    lastIncoming = null
+                }
                 change { it.copy(incoming = incoming) }
                 if (incoming != null && lastIncoming != incoming.id) {
                     lastIncoming = incoming.id
                     val options = preferences.read(actor)
                     if (options.notify(incoming.thread, false)) {
                         val alerts = NativeNotifications(context)
-                        if (options.sound) alerts.sound()
-                        if (options.vibration) alerts.vibrate()
+                        if (options.sound) alerts.sound(call = true)
+                        if (options.vibration) alerts.vibrate(true)
                     }
                 }
             } else {
@@ -199,6 +203,7 @@ internal class NativeCalls(
             }
             return
         }
+        NativeNotifications(context).stopVibration()
         val generation = ++epoch
         val id = incoming ?: UUID.randomUUID().toString()
         change { it.copy(busy = true, error = null, expanded = true) }
@@ -329,6 +334,7 @@ internal class NativeCalls(
     }
 
     fun decline() {
+        NativeNotifications(context).stopVibration()
         val incoming = state.value.incoming ?: return
         change { it.copy(incoming = null) }
         scope.launch {
@@ -337,6 +343,7 @@ internal class NativeCalls(
     }
 
     fun end() {
+        NativeNotifications(context).stopVibration()
         val id = callId ?: state.value.incoming?.id
         epoch++
         pending?.cancel()

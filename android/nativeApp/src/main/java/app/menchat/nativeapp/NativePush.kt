@@ -210,8 +210,14 @@ class NativeMessagingService : FirebaseMessagingService() {
             thread,
             id,
             options,
+            title =
+                if (options.previews && message.data["kind"] != "call")
+                    message.data["title"]?.take(60) ?: "MenChat"
+                else "MenChat",
             body =
                 if (message.data["kind"] == "call") "Você está recebendo uma chamada."
+                else if (options.previews)
+                    message.data["body"]?.take(161) ?: "Você tem uma nova mensagem."
                 else "Você tem uma nova mensagem.",
             call = if (message.data["kind"] == "call") id else null,
         )
