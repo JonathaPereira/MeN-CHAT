@@ -10,24 +10,23 @@ import org.json.JSONException
 internal class NativeApiException(val status: Int, val apiCode: String?, message: String) :
     IllegalStateException(message)
 
-internal fun safeApiCode(value: String?): String? =
-    value?.takeIf {
-        it in
-            setOf(
-                "42501",
-                "22P02",
-                "42703",
-                "23514",
-                "23503",
-                "23505",
-                "P0001",
-                "PGRST202",
-                "PGRST100",
-                "PGRST204",
-                "PGRST301",
-                "PGRST116",
-            )
-    }
+internal fun safeApiCode(value: String?): String? = value?.takeIf {
+    it in
+        setOf(
+            "42501",
+            "22P02",
+            "42703",
+            "23514",
+            "23503",
+            "23505",
+            "P0001",
+            "PGRST202",
+            "PGRST100",
+            "PGRST204",
+            "PGRST301",
+            "PGRST116",
+        )
+}
 
 internal enum class SyncStage(val label: String) {
     LISTA("lista de conversas"),

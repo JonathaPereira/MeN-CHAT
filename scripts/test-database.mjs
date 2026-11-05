@@ -180,6 +180,11 @@ try {
   );
   await sql(await readFile(new URL("../supabase/migrations/20261104000800_android_push.sql", import.meta.url), "utf8"));
   await sql(await readFile(new URL("../supabase/tests/android-push.sql", import.meta.url), "utf8"));
+  await sql(await readFile(new URL("../supabase/migrations/20261105000900_native_experience.sql",import.meta.url),"utf8"));
+  await sql(await readFile(new URL("../supabase/tests/native-experience.sql",import.meta.url),"utf8"));
+  await sql(await readFile(new URL("../supabase/migrations/20261105001000_private_calls.sql",import.meta.url),"utf8"));
+  await sql(await readFile(new URL("../supabase/tests/private-calls.sql",import.meta.url),"utf8"));
+  console.log("PASS: FCM privado, sessão revogada, lease e figurinhas; chamadas isoladas por conta/dispositivo, limite de quatro, idempotência e remoção.");
   console.log("PASS: push privado, fila com lease, silenciamento, remoção e privilégios.");
   console.log(
     "PASS: respostas isoladas por conversa, menções autorizadas e marcações pessoais.",
@@ -254,7 +259,7 @@ try {
   await assert.rejects(sql(migration));
   assert.equal(
     await sql("select count(*) from menchat_private.schema_migrations;"),
-    "8",
+    "10",
   );
   console.log("PASS: reaplicação não altera o esquema existente.");
   const ownerScript = (

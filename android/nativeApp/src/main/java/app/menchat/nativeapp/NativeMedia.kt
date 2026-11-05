@@ -28,6 +28,8 @@ import kotlinx.coroutines.withContext
 
 @Composable
 internal fun NativeMedia(model: MainModel, id: String) {
+    val state by model.state.collectAsState()
+    var manual by remember(id) { mutableStateOf(false) }
     var expanded by remember(id) { mutableStateOf(false) }
     var unavailable by remember(id) { mutableStateOf(false) }
     var media by remember(id) { mutableStateOf<Media?>(null) }
@@ -35,6 +37,8 @@ internal fun NativeMedia(model: MainModel, id: String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val audio by model.audio.state.collectAsState()
+    val call by model.calls.state.collectAsState()
+    val calling = call.busy || call.active != null
     val save =
         rememberLauncherForActivityResult(
             ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -68,12 +72,7 @@ internal fun NativeMedia(model: MainModel, id: String) {
         }
     LaunchedEffect(id) {
         try {
-            withContext(Dispatchers.IO) { model.gateway.media(id) }
-                .also {
-                    media = it
-                    if (it.kind == "image")
-                        url = withContext(Dispatchers.IO) { model.gateway.signed(it) }
-                }
+            withContext(Dispatchers.IO) { model.gateway.media(id) }.also { media = it }
         } catch (cancel: CancellationException) {
             throw cancel
         } catch (_: Exception) {
@@ -88,6 +87,7 @@ internal fun NativeMedia(model: MainModel, id: String) {
         )
         return
     }
+    LaunchedEffect(calling) { if (calling && item.kind != "image") expanded = false }
     if (expanded) {
         DisposableEffect(id) {
             model.mediaCovered = true
@@ -101,19 +101,35 @@ internal fun NativeMedia(model: MainModel, id: String) {
             { expanded = false },
         )
     }
-    LaunchedEffect(item.id, item.kind) {
-        if (item.kind == "image")
-            while (true) {
-                delay(240_000)
-                try {
-                    url = withContext(Dispatchers.IO) { model.gateway.signed(item) }
-                } catch (cancel: CancellationException) {
-                    throw cancel
-                } catch (_: Exception) {
-                    url = null
-                    unavailable = true
+    val allowed = manual || state.options.auto(item.kind)
+    LaunchedEffect(item.id, allowed) {
+        if (item.kind == "image") {
+            url = null
+            if (allowed)
+                while (true) {
+                    try {
+                        url = withContext(Dispatchers.IO) { model.gateway.signed(item) }
+                    } catch (cancel: CancellationException) {
+                        throw cancel
+                    } catch (_: Exception) {
+                        unavailable = true
+                    }
+                    delay(240_000)
                 }
-            }
+        }
+    }
+    if (!allowed && item.kind in listOf("image", "audio", "video")) {
+        OutlinedButton(onClick = { manual = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                when (item.kind) {
+                    "image" -> "Carregar foto"
+                    "audio" -> "Carregar áudio"
+                    else -> "Carregar vídeo"
+                }
+            )
+        }
+        ChatIconButton(Glyph.Download, "Baixar anexo", onClick = { save.launch(item.name) })
+        return
     }
     if (item.kind == "image" && url != null)
         AsyncImage(
@@ -122,10 +138,10 @@ internal fun NativeMedia(model: MainModel, id: String) {
                     .data(url)
                     .diskCachePolicy(CachePolicy.DISABLED)
                     .build(),
-            contentDescription = "Foto enviada",
+            contentDescription = if (item.sticker) "Figurinha" else "Foto enviada",
             modifier =
                 Modifier.fillMaxWidth()
-                    .heightIn(min = 80.dp, max = 250.dp)
+                    .heightIn(min = 80.dp, max = if (item.sticker) 180.dp else 250.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .clickable(onClickLabel = "Ampliar foto") { expanded = true },
         )
@@ -134,20 +150,23 @@ internal fun NativeMedia(model: MainModel, id: String) {
             audio,
             id,
             onToggle = {
-                scope.launch {
-                    try {
-                        if (audio.id == id && url != null) model.audio.toggle(id, url!!)
-                        else {
-                            val source = withContext(Dispatchers.IO) { model.gateway.signed(item) }
-                            url = source
-                            model.audio.toggle(id, source)
+                if (calling) model.error("Encerre a chamada para ouvir este áudio.")
+                else
+                    scope.launch {
+                        try {
+                            if (audio.id == id && url != null) model.audio.toggle(id, url!!)
+                            else {
+                                val source =
+                                    withContext(Dispatchers.IO) { model.gateway.signed(item) }
+                                url = source
+                                model.audio.toggle(id, source)
+                            }
+                        } catch (cancel: CancellationException) {
+                            throw cancel
+                        } catch (_: Exception) {
+                            model.error("Áudio indisponível.")
                         }
-                    } catch (cancel: CancellationException) {
-                        throw cancel
-                    } catch (_: Exception) {
-                        model.error("Áudio indisponível.")
                     }
-                }
             },
             onSeek = model.audio::seek,
             onDownload = { save.launch(item.name) },
@@ -155,6 +174,7 @@ internal fun NativeMedia(model: MainModel, id: String) {
     } else if (item.kind == "video")
         OutlinedButton(
             onClick = { expanded = true },
+            enabled = !calling,
             modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp),
             shape = RoundedCornerShape(12.dp),
         ) {

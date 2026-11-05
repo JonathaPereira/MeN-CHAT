@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,10 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,6 +41,8 @@ internal fun ConversationPane(
     onMenu: (Message?) -> Unit,
     composer: @Composable () -> Unit,
     media: @Composable (String) -> Unit,
+    onDetails: (() -> Unit)? = null,
+    onStar: ((Message) -> Unit)? = null,
 ) {
     val p = LocalChatPalette.current
     val thread = state.selected ?: return
@@ -83,6 +91,13 @@ internal fun ConversationPane(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            if (onDetails != null)
+                ChatIconButton(
+                    Glyph.Down,
+                    "Opções da conversa",
+                    enabled = !state.busy,
+                    onClick = onDetails,
+                )
             ChatIconButton(
                 Glyph.Settings,
                 "Configurações",
@@ -133,6 +148,7 @@ internal fun ConversationPane(
                         onMenu(null)
                     },
                     media,
+                    onStar?.let { callback -> { callback(msg) } },
                 )
             }
             if (state.messages.isEmpty())
@@ -174,6 +190,7 @@ private fun MessageBubble(
     reply: () -> Unit,
     delete: (Boolean) -> Unit,
     media: @Composable (String) -> Unit,
+    star: (() -> Unit)? = null,
 ) {
     val p = LocalChatPalette.current
     val mine = msg.sender == state.account?.id
@@ -231,6 +248,12 @@ private fun MessageBubble(
                         Spacer(Modifier.height(6.dp))
                     }
                     if (msg.attachment != null && !msg.deleted) media(msg.attachment)
+                    if (state.account?.id in msg.mentions)
+                        Text(
+                            "Você foi mencionado",
+                            color = p.accent,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
                     if (msg.text.isNotBlank())
                         Text(
                             msg.text,
@@ -288,6 +311,20 @@ private fun MessageBubble(
                         shape = RoundedCornerShape(14.dp),
                         containerColor = p.panel,
                     ) {
+                        if (!msg.deleted && star != null)
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        if (msg.id in state.starred) "Desmarcar favorita"
+                                        else "Marcar favorita"
+                                    )
+                                },
+                                leadingIcon = { ChatIcon(Glyph.Star) },
+                                onClick = {
+                                    star()
+                                    close()
+                                },
+                            )
                         if (!msg.deleted)
                             DropdownMenuItem(
                                 text = { Text("Responder") },
@@ -326,10 +363,22 @@ internal fun ComposerContent(
     camera: (() -> Unit)? = null,
     discardMedia: () -> Unit = discardVoice,
     preview: () -> Unit = {},
+    expressions: (() -> Unit)? = null,
+    onSelection: (Int) -> Unit = {},
 ) {
     val p = LocalChatPalette.current
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    var field by remember {
+        mutableStateOf(
+            TextFieldValue(state.text, TextRange(state.cursor.coerceIn(0, state.text.length)))
+        )
+    }
+    LaunchedEffect(state.text, state.cursor) {
+        if (field.text != state.text)
+            field =
+                TextFieldValue(state.text, TextRange(state.cursor.coerceIn(0, state.text.length)))
+    }
     LaunchedEffect(state.reply?.id, state.recording) {
         if (state.reply != null && !state.recording) {
             focus.requestFocus()
@@ -486,8 +535,19 @@ internal fun ComposerContent(
                     border = androidx.compose.foundation.BorderStroke(1.dp, p.line),
                 ) {
                     BasicTextField(
-                        state.text,
-                        onText,
+                        field,
+                        { value ->
+                            field = value
+                            onText(value.text)
+                            onSelection(value.selection.end)
+                        },
+                        keyboardOptions =
+                            KeyboardOptions(
+                                imeAction =
+                                    if (state.options.enterSends) ImeAction.Send
+                                    else ImeAction.Default
+                            ),
+                        keyboardActions = KeyboardActions(onSend = { if (enabled) send() }),
                         enabled = enabled,
                         maxLines = 4,
                         modifier =
@@ -495,6 +555,18 @@ internal fun ComposerContent(
                                 .padding(horizontal = 16.dp, vertical = 13.dp)
                                 .heightIn(min = 22.dp, max = 110.dp)
                                 .focusRequester(focus)
+                                .onPreviewKeyEvent { event ->
+                                    if (
+                                        state.options.enterSends &&
+                                            enabled &&
+                                            event.type == KeyEventType.KeyDown &&
+                                            event.key == Key.Enter &&
+                                            !event.isShiftPressed
+                                    ) {
+                                        send()
+                                        true
+                                    } else false
+                                }
                                 .semantics { contentDescription = "Mensagem" },
                         textStyle = MaterialTheme.typography.bodyMedium.copy(color = p.ink),
                         cursorBrush = SolidColor(p.accent),
@@ -513,6 +585,13 @@ internal fun ComposerContent(
                 }
             }
             val picks: @Composable () -> Unit = {
+                if (expressions != null)
+                    ChatIconButton(
+                        Glyph.Emoji,
+                        "Emojis e figurinhas",
+                        enabled = enabled,
+                        onClick = expressions,
+                    )
                 if (attach != null)
                     ChatIconButton(
                         Glyph.Clip,
@@ -524,7 +603,7 @@ internal fun ComposerContent(
                     ChatIconButton(
                         Glyph.Camera,
                         "Abrir câmera",
-                        enabled = canPick,
+                        enabled = canPick && !state.callActive,
                         onClick = camera,
                     )
             }
@@ -533,7 +612,7 @@ internal fun ComposerContent(
                     ChatIconButton(
                         Glyph.Mic,
                         "Gravar áudio",
-                        enabled = enabled && file == null,
+                        enabled = enabled && file == null && !state.callActive,
                         onClick = record,
                     )
                 SendControl(

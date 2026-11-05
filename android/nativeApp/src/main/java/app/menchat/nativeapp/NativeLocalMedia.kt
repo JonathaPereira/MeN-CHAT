@@ -17,6 +17,7 @@ internal data class LocalAttachment(
     val name: String,
     val mime: String,
     val kind: String,
+    val sticker: Boolean = false,
 ) {
     val bytes
         get() = file.length()
@@ -205,6 +206,13 @@ internal class NativeLocalMedia(private val context: Context) {
         }
     }
 
+    fun stickerBitmap(file: File): Bitmap {
+        val source = decodeSampled(file, 1024, 20_000_000)
+        val result = orient(source, file)
+        if (result !== source) source.recycle()
+        return result
+    }
+
     private fun decodeSampled(file: File, size: Int, pixels: Long): Bitmap {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.absolutePath, bounds)
@@ -224,15 +232,14 @@ internal class NativeLocalMedia(private val context: Context) {
     }
 
     private fun orient(bitmap: Bitmap, file: File): Bitmap {
-        val orientation =
-            runCatching {
-                    ExifInterface(file)
-                        .getAttributeInt(
-                            ExifInterface.TAG_ORIENTATION,
-                            ExifInterface.ORIENTATION_NORMAL,
-                        )
-                }
-                .getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+        val orientation = runCatching {
+            ExifInterface(file)
+                .getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL,
+                )
+        }
+            .getOrDefault(ExifInterface.ORIENTATION_NORMAL)
         val matrix =
             Matrix().apply {
                 when (orientation) {

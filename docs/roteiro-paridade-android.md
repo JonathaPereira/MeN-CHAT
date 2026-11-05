@@ -21,7 +21,7 @@ Objetivo solicitado: aproximar o Android da experiência completa da web, preser
 
 ## 3. Câmera, anexos, perfil e recursos da web
 
-Entrega 3A implementada no [APK 2.2.0](android-midia-perfil-2.2.md): câmera/galeria/documentos/áudio anexado, prévia e player nativos, perfil/foto/privacidade e tentativas de envio. Teste físico e Supabase hospedado continuam pendentes. Administração completa de grupos e demais recursos abaixo compõem a próxima entrega 3B.
+Entrega 3A implementada no [APK 2.2.0](android-midia-perfil-2.2.md): câmera/galeria/documentos/áudio anexado, prévia e player nativos, perfil/foto/privacidade e tentativas de envio. Teste físico e Supabase hospedado continuam pendentes. A entrega 3B, notificações e chamadas foram implementadas na [3.0](android-3.0.md), com ativação de Firebase/TURN e validação física ainda necessárias.
 
 - Captura Android de foto/vídeo, galeria e documentos; prévia/descarte, retomada após permissão e liberação de recursos ao sair.
 - Fotos 5 MB, vídeos 25 MB, áudio/documentos 10 MB; avatar normalizado conforme a política atual. Reservas, upload sem sobrescrita, confirmação e cotas continuam no servidor.

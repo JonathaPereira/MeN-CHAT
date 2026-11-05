@@ -142,10 +142,9 @@ class GatewayTest {
                         )
                 }
             }
-        val messages =
-            ids.mapIndexed { i, id ->
-                Message(id, i.toLong(), actor, "Privada", "", "attachment", false, "reply")
-            }
+        val messages = ids.mapIndexed { i, id ->
+            Message(id, i.toLong(), actor, "Privada", "", "attachment", false, "reply")
+        }
         val visible = gateway.reconcile(thread, messages)
         assertEquals(listOf(ids[0], ids[1]), visible.map { it.id })
         assertEquals("Privada", visible[0].text)

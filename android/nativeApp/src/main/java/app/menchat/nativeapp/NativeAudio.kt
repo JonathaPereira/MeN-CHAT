@@ -22,6 +22,18 @@ internal class NativeAudio(context: Context, private val onError: (String) -> Un
     private val manager = context.getSystemService(AudioManager::class.java)
     private val handler = Handler(Looper.getMainLooper())
     private var player: MediaPlayer? = null
+    private var speed = 1f
+
+    fun rate(value: Float) {
+        speed = value.takeIf { it in listOf(1f, 1.25f, 1.5f, 2f) } ?: 1f
+        runCatching {
+            player?.let {
+                if (mutable.value.playing && mutable.value.duration > 0)
+                    it.playbackParams = it.playbackParams.setSpeed(speed)
+            }
+        }
+    }
+
     private val mutable = MutableStateFlow(AudioState())
     val state = mutable.asStateFlow()
     private val attributes =
@@ -91,7 +103,10 @@ internal class NativeAudio(context: Context, private val onError: (String) -> Un
     private fun start() {
         try {
             if (manager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                player?.start()
+                player?.let {
+                    it.playbackParams = it.playbackParams.setSpeed(speed)
+                    it.start()
+                }
                 mutable.value = mutable.value.copy(playing = true)
                 handler.post(tick)
             }

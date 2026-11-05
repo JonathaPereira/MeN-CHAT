@@ -2,11 +2,13 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  globalSetup: "./tests/support/turn-fixture.ts",
   testMatch: [
     "**/real-auth.spec.ts",
     "**/invitations.spec.ts",
     "**/official.spec.ts",
     "**/android.spec.ts",
+    "**/calls.spec.ts",
   ],
   fullyParallel: true,
   timeout: 30_000,

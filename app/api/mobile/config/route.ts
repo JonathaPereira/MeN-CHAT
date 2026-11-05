@@ -1,3 +1,5 @@
+import { firebasePublic, nativePushReady } from "@/lib/native-push/config";
+import { callsReady } from "@/lib/calls/config";
 import { parseSupabaseConfig } from "@/lib/supabase/config";
 export const dynamic = "force-dynamic";
 // Only the same public URL/key already used by the web client. Never administrative keys.
@@ -9,7 +11,13 @@ export async function GET() {
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     );
     return Response.json(
-      { url: config.url, publishableKey: config.key },
+      {
+        url: config.url,
+        publishableKey: config.key,
+        firebase: firebasePublic(process.env),
+        nativePushReady: nativePushReady(process.env),
+        callsReady: callsReady(process.env),
+      },
       { headers },
     );
   } catch {

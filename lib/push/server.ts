@@ -1,12 +1,10 @@
 import "server-only";
+import { deliverNativePush } from "@/lib/native-push/server";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseSubscription, pushReady, type Subscription } from "./validation";
 type Job = Subscription & { message: string; subscription: string };
-export async function deliverPush(
-  actor: string | null,
-  message: string | null,
-) {
+async function deliverWebPush(actor: string | null, message: string | null) {
   if (!pushReady(process.env)) return;
   const client = createAdminClient();
   const claim = await client.rpc("menchat_claim_push", {
@@ -55,4 +53,14 @@ export async function deliverPush(
       }),
     );
   }
+}
+
+export async function deliverPush(
+  actor: string | null,
+  message: string | null,
+) {
+  await Promise.allSettled([
+    deliverWebPush(actor, message),
+    deliverNativePush(actor, message),
+  ]);
 }

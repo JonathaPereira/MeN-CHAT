@@ -11,7 +11,13 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal data class PublicConfig(val url: String, val key: String) {
+internal data class PublicConfig(
+    val url: String,
+    val key: String,
+    val firebase: FirebaseRuntime? = null,
+    val nativePushReady: Boolean = false,
+    val callsReady: Boolean = false,
+) {
     companion object {
         fun parse(data: JSONObject): PublicConfig {
             val url = data.getString("url").toHttpUrl()
@@ -25,7 +31,13 @@ internal data class PublicConfig(val url: String, val key: String) {
             )
             val key = data.getString("publishableKey")
             require(Regex("sb_publishable_[A-Za-z0-9_-]+").matches(key))
-            return PublicConfig(url.toString().trimEnd('/'), key)
+            return PublicConfig(
+                url.toString().trimEnd('/'),
+                key,
+                FirebaseRuntime.parse(data.optJSONObject("firebase")),
+                data.optBoolean("nativePushReady"),
+                data.optBoolean("callsReady"),
+            )
         }
     }
 }
@@ -45,6 +57,7 @@ internal class Gateway(
             .build(),
     private var config: PublicConfig? = null,
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
+    private val siteOrigin: String = "https://men-chat.vercel.app",
 ) {
     @Volatile var credentials: Credentials? = null
     var onCredentials: (Credentials) -> Unit = {}
@@ -54,8 +67,7 @@ internal class Gateway(
         config?.let {
             return it
         }
-        val request =
-            Request.Builder().url("https://men-chat.vercel.app/api/mobile/config").get().build()
+        val request = Request.Builder().url(siteOrigin + "/api/mobile/config").get().build()
         val data =
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful)
@@ -199,7 +211,7 @@ internal class Gateway(
                     "id" to "eq.$id",
                     "account_status" to "eq.active",
                     "select" to
-                        "id,display_name,user_code,status_message,avatar_path,show_code,allow_code_lookup,read_receipts,show_typing",
+                        "id,display_name,user_code,status_message,avatar_path,show_code,allow_code_lookup,read_receipts,show_typing,app_role",
                 ),
             )
         require(rows.length() == 1 && rows.getJSONObject(0).getString("id") == id) {
@@ -216,6 +228,7 @@ internal class Gateway(
                 it.optBoolean("allow_code_lookup", true),
                 it.optBoolean("read_receipts", true),
                 it.optBoolean("show_typing", true),
+                it.optString("app_role") == "admin",
             )
         }
     }
@@ -246,6 +259,9 @@ internal class Gateway(
                 it.optInt("unread_count"),
                 it.optional("last_at"),
                 it.optional("avatar_path"),
+                it.optional("creator_id"),
+                it.optional("owner_id"),
+                it.optional("last_sender"),
             )
         }
 
@@ -305,6 +321,10 @@ internal class Gateway(
                 it.optBoolean("is_typing"),
                 it.optLong("received_seq"),
                 if (it.isNull("read_seq")) null else it.optLong("read_seq"),
+                it.optString("role", "member"),
+                it.optString("status"),
+                it.optional("avatar_path"),
+                it.optional("code"),
             )
         }
 
@@ -337,6 +357,7 @@ internal class Gateway(
         text: String,
         upload: String? = null,
         reply: String? = null,
+        mentions: Set<String> = emptySet(),
     ): Message =
         JSONObject(
                 rpc(
@@ -346,7 +367,7 @@ internal class Gateway(
                         .put("p_thread", thread)
                         .put("p_body", text)
                         .put("p_reply", reply ?: JSONObject.NULL)
-                        .put("p_mentions", JSONArray())
+                        .put("p_mentions", JSONArray(mentions.sorted()))
                         .put("p_upload", upload ?: JSONObject.NULL),
                 )
             )
@@ -357,11 +378,18 @@ internal class Gateway(
         return rpc("menchat_open_private", JSONObject().put("p_code", code)).trim('"')
     }
 
-    fun createGroup(name: String): String {
-        require(name.isNotBlank() && name.length <= 80)
+    fun createGroup(name: String, codes: List<String> = emptyList()): String {
+        require(
+            name.isNotBlank() &&
+                name.length <= 60 &&
+                codes.size <= 19 &&
+                codes.all { Regex("[A-Z0-9]{6}").matches(it) }
+        ) {
+            "Confira o nome e os códigos do grupo."
+        }
         return rpc(
                 "menchat_create_group",
-                JSONObject().put("p_name", name.trim()).put("p_codes", JSONArray()),
+                JSONObject().put("p_name", name.trim()).put("p_codes", JSONArray(codes)),
             )
             .trim('"')
     }
@@ -372,11 +400,7 @@ internal class Gateway(
 
     fun media(id: String): Media {
         val value =
-            table(
-                    "menchat_uploads",
-                    mapOf("id" to "eq.$id", "select" to "id,path,kind,mime,name,bytes"),
-                )
-                .getJSONObject(0)
+            table("menchat_uploads", mapOf("id" to "eq.$id", "select" to "*")).getJSONObject(0)
         return Media(
             id,
             value.getString("path"),
@@ -384,6 +408,7 @@ internal class Gateway(
             value.getString("mime"),
             value.getString("name"),
             value.getLong("bytes"),
+            value.optBoolean("is_sticker"),
         )
     }
 
@@ -431,11 +456,11 @@ internal class Gateway(
         val row =
             JSONArray(
                     rpc(
-                        "menchat_reserve_upload",
+                        if (file.sticker) "menchat_reserve_sticker" else "menchat_reserve_upload",
                         JSONObject()
                             .put("p_thread", thread ?: JSONObject.NULL)
                             .put("p_name", file.name)
-                            .put("p_mime", file.mime)
+                            .apply { if (!file.sticker) put("p_mime", file.mime) }
                             .put("p_bytes", file.bytes),
                     )
                 )
@@ -536,5 +561,105 @@ internal class Gateway(
                 .put("p_avatar", avatar ?: JSONObject.NULL)
                 .put("p_remove", draft.removePhoto),
         )
+    }
+
+    fun manageGroup(
+        thread: String,
+        action: String,
+        user: String? = null,
+        code: String? = null,
+        name: String? = null,
+    ) {
+        require(
+            action in listOf("rename", "add", "remove", "promote", "demote", "transfer", "leave")
+        )
+        require(
+            rpc(
+                "menchat_manage_group",
+                JSONObject()
+                    .put("p_thread", thread)
+                    .put("p_action", action)
+                    .put("p_user", user ?: JSONObject.NULL)
+                    .put("p_code", code ?: JSONObject.NULL)
+                    .put("p_name", name ?: JSONObject.NULL),
+            ) == "true"
+        ) {
+            "Não foi possível atualizar o grupo. Confira o código, seu papel e as regras do criador."
+        }
+    }
+
+    fun starred(thread: String): Set<String> =
+        JSONArray(rpc("menchat_starred", JSONObject().put("p_thread", thread))).let { array ->
+            (0 until array.length()).map { array.getString(it) }.toSet()
+        }
+
+    fun star(id: String, value: Boolean) {
+        rpc("menchat_star_message", JSONObject().put("p_id", id).put("p_star", value))
+    }
+
+    fun favoriteMessages(thread: String, ids: Set<String>): List<Message> =
+        if (ids.isEmpty()) emptyList()
+        else
+            table(
+                    "menchat_messages",
+                    mapOf(
+                        "thread_id" to "eq.$thread",
+                        "id" to "in.(${ids.take(200).joinToString(",")})",
+                        "select" to "*",
+                        "order" to "seq.desc",
+                        "limit" to "200",
+                    ),
+                )
+                .objects()
+                .map { it.message() }
+                .filter { !it.deleted }
+
+    fun invitations(): List<NativeInvitation> =
+        JSONArray(rpc("menchat_list_invites")).objects().map {
+            NativeInvitation(
+                it.getString("id"),
+                it.getString("email"),
+                it.getString("expires_at"),
+                it.getString("state"),
+            )
+        }
+
+    fun revokeInvitation(id: String) {
+        require(rpc("menchat_revoke_invite", JSONObject().put("p_id", id)) == "true") {
+            "Convite indisponível ou já utilizado."
+        }
+    }
+
+    fun createInvitation(email: String): String =
+        mobile("/api/mobile/invitations", JSONObject().put("email", email)).getString("url")
+
+    fun publicConfiguration() = configured()
+
+    fun mobile(path: String, body: JSONObject? = null): JSONObject {
+        require(path.startsWith("/api/mobile/"))
+        val request =
+            Request.Builder()
+                .url(siteOrigin + path)
+                .header("Authorization", "Bearer ${token()}")
+                .header("Cache-Control", "no-store")
+                .apply { if (body != null) post(body.toString().toRequestBody(jsonType)) }
+                .build()
+        return client.newCall(request).execute().use { response ->
+            val raw = response.body?.string().orEmpty()
+            if (!response.isSuccessful)
+                throw NativeApiException(
+                    response.code,
+                    null,
+                    when (response.code) {
+                        401 -> "Entre novamente para continuar."
+                        403 -> "Você não tem permissão para esta ação."
+                        409 ->
+                            "Ação indisponível. Confira o limite de pessoas e os convites existentes."
+                        429 -> "Muitas tentativas. Aguarde."
+                        else -> "Recurso indisponível. Confira a configuração do servidor."
+                    },
+                )
+            if (raw.isBlank()) JSONObject() else JSONObject(raw)
+        }
     }
 }

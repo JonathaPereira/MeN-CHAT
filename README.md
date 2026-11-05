@@ -28,10 +28,11 @@ Copie `.env.example` para `.env.local` e preencha URL/chave publicável do seu S
 
 ## Banco e publicação
 
-Migrações em `supabase/migrations/`, versões 1–8, aplicadas uma vez em ordem. Preserve arquivos já aplicados; mudanças posteriores usam novas migrações. Primeiro administrador é definido pelo proprietário, sem endpoint público de bootstrap.
+Migrações em `supabase/migrations/`, versões 1–10, aplicadas uma vez em ordem. Preserve arquivos já aplicados; mudanças posteriores usam novas migrações. Primeiro administrador é definido pelo proprietário, sem endpoint público de bootstrap.
 
 Guias:
 
+- [Android 3.0 — recursos, submenus, som, Firebase e chamadas](docs/android-3.0.md).
 - [Primeiro acesso administrativo](docs/primeiro-acesso-real.md).
 - [Configuração única de convites](docs/convites-pelo-aplicativo.md).
 - [Grupos, Storage e perfil — migração 5](docs/chat-completo.md).
@@ -47,7 +48,7 @@ Rotas principais: `/entrar`, `/conta/chat`, `/conta/perfil`, `/conta/configuraco
 
 ## Instalar no Android
 
-Abra a publicação HTTPS no Chrome e use ⋮ → Instalar aplicativo / Adicionar à tela inicial. O MenChat também mostra um botão de instalação quando o navegador permitir. O app instalado exige internet; o worker não armazena conversas, tokens ou anexos em Cache Storage. O botão **Baixar app Android** oferece o APK Kotlin 2.2.0 (conversas, texto/áudio, câmera, fotos/vídeos, anexos e edição de perfil) e a alternativa PWA. O nativo não usa Chrome/WebView; ainda não tem paridade completa com a web, nem push Android em segundo plano. Web Push com o site/PWA fechado exige a configuração única da migração 8 e das chaves do servidor; consulte o guia Android. Ainda não há publicação na Play Store.
+Abra a publicação HTTPS no Chrome e use ⋮ → Instalar aplicativo / Adicionar à tela inicial. O MenChat também mostra um botão de instalação quando o navegador permitir. O app instalado exige internet; o worker não armazena conversas, tokens ou anexos em Cache Storage. O botão **Baixar app Android** oferece o APK Kotlin 3.0.0 e a alternativa PWA. O nativo não usa Chrome/WebView. Inclui grupos, mídia/câmera, perfil, favoritos, menções, emojis/figurinhas, configurações em submenus e som próprio. Push Android e chamadas WebRTC web/Android estão implementados, mas dependem de migrações 9–10 e configuração Firebase/TURN no servidor; consulte o [guia 3.0](docs/android-3.0.md). Não foram ativados ou validados nas contas hospedadas por esta entrega. Instale sobre a versão anterior, preservando a assinatura. Ainda não há publicação na Play Store.
 
 ## Privacidade e limites
 
@@ -69,7 +70,7 @@ npm run test:real-ui
 npm run test:dev
 ```
 
-`test:db` usa Docker/PostgreSQL descartável; nunca execute fixtures de `supabase/tests` no projeto hospedado. Testa permissões, cota, grupos, mensagens, mídia e concorrência. Não emula Auth/SMTP/Storage HTTP reais.
+`test:db` usa Docker/PostgreSQL descartável; `test:e2e` também exige Docker para TURN local descartável (chamadas com RTP real); nunca execute fixtures de `supabase/tests` no projeto hospedado. Testa permissões, cota, grupos, mensagens, mídia e concorrência. Não emula Auth/SMTP/Storage HTTP reais.
 
 Playwright: `npx playwright install chromium`. Na nuvem, prefixe os comandos com `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`. Execute as suítes sequencialmente, deixando portas 3100/3102/3106 livres.
 

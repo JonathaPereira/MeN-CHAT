@@ -55,3 +55,8 @@ next-env.d.ts
 *.jks
 *.keystore
 *signing.properties
+
+# Local Firebase downloads; administrative JSON must stay outside the repository
+**/google-services.json
+**/*firebase-adminsdk*.json
+**/*service-account*.json

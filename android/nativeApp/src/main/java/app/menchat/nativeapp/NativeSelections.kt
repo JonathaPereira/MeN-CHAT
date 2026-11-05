@@ -1,8 +1,10 @@
 package app.menchat.nativeapp
 
+import android.Manifest
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -63,6 +65,7 @@ internal data class SelectionActions(
     val gallery: (Boolean) -> Unit,
     val document: (Boolean) -> Unit,
     val camera: (Boolean, Boolean) -> Unit,
+    val sticker: () -> Unit,
 )
 
 @Composable
@@ -91,6 +94,12 @@ internal fun rememberSelections(model: MainModel): SelectionActions {
             if (ok) model.receiveSelection(null, actor, thread, profile, it, video) else it.delete()
         }
     }
+    var stickerActor by rememberSaveable { mutableStateOf("") }
+    val stickerGallery =
+        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            inFlight = false
+            if (uri != null) model.importSticker(uri, stickerActor)
+        }
     val gallery =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) {
             returned(it)
@@ -116,7 +125,52 @@ internal fun rememberSelections(model: MainModel): SelectionActions {
         path = ""
         model.error("Não foi possível abrir o seletor ou a câmera deste aparelho.")
     }
+    var captureVideo by rememberSaveable { mutableStateOf(false) }
+    fun launchCapture() {
+        val current = model.state.value
+        if (
+            current.account?.id != actor ||
+                current.busy ||
+                current.callActive ||
+                (!profile && current.selected?.id != thread)
+        ) {
+            inFlight = false
+            return
+        }
+        try {
+            val file = CaptureFiles.create(context, captureVideo)
+            path = file.absolutePath
+            val uri = CaptureFiles.uri(context, file)
+            if (captureVideo) video.launch(uri) else photo.launch(uri)
+        } catch (_: Exception) {
+            failed()
+        }
+    }
+    val cameraPermission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) launchCapture()
+            else {
+                inFlight = false
+                model.error(
+                    "Permita a câmera nas configurações do Android para capturar fotos e vídeos."
+                )
+            }
+        }
     return SelectionActions(
+        sticker = {
+            val state = model.state.value
+            if (!inFlight && !state.busy && state.account != null) {
+                stickerActor = state.account.id
+                inFlight = true
+                try {
+                    stickerGallery.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                } catch (_: Exception) {
+                    failed()
+                }
+            }
+        },
         gallery = { forProfile ->
             if (prepare(forProfile))
                 try {
@@ -152,15 +206,17 @@ internal fun rememberSelections(model: MainModel): SelectionActions {
                 }
         },
         camera = { isVideo, forProfile ->
-            if (prepare(forProfile))
-                try {
-                    val file = CaptureFiles.create(context, isVideo)
-                    path = file.absolutePath
-                    val uri = CaptureFiles.uri(context, file)
-                    if (isVideo) video.launch(uri) else photo.launch(uri)
-                } catch (_: Exception) {
-                    failed()
-                }
+            if (model.state.value.callActive)
+                model.error("Encerre a chamada antes de usar a câmera para um anexo.")
+            else if (prepare(forProfile)) {
+                captureVideo = isVideo
+                if (
+                    context.checkSelfPermission(Manifest.permission.CAMERA) ==
+                        PackageManager.PERMISSION_GRANTED
+                )
+                    launchCapture()
+                else cameraPermission.launch(Manifest.permission.CAMERA)
+            }
         },
     )
 }

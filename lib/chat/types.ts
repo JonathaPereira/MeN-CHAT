@@ -36,6 +36,7 @@ export type Participant = {
   shares_read: boolean;
 };
 export type Upload = {
+  is_sticker?: boolean;
   id: string;
   path: string;
   kind: "image" | "video" | "audio" | "document" | "avatar";

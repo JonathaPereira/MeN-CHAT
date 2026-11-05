@@ -7,7 +7,10 @@ test("inicialização nativa entrega somente configuração pública, sem conced
   expect(response.status()).toBe(200);
   expect(response.headers()["cache-control"]).toContain("no-store");
   const data = await response.json();
-  expect(Object.keys(data).sort()).toEqual(["publishableKey", "url"]);
+  expect(Object.keys(data).sort()).toEqual(["callsReady", "firebase", "nativePushReady", "publishableKey", "url"]);
+  expect(data.firebase).toBeNull();
+  expect(data.nativePushReady).toBe(false);
+  expect(data.callsReady).toBe(false);
   expect(data.url).toBe("https://menchat.invalid");
   expect(data.publishableKey).toBe("sb_publishable_ui_test");
   expect(response.headers()["set-cookie"]).toBeUndefined();

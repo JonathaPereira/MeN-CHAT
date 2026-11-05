@@ -18,6 +18,7 @@ data class Account(
     val lookup: Boolean = true,
     val readReceipts: Boolean = true,
     val showTyping: Boolean = true,
+    val admin: Boolean = false,
 )
 
 internal data class ProfileDraft(
@@ -40,6 +41,9 @@ data class Conversation(
     val unread: Int,
     val lastAt: String? = null,
     val avatarPath: String? = null,
+    val creator: String? = null,
+    val owner: String? = null,
+    val lastSender: String? = null,
 )
 
 data class Message(
@@ -51,6 +55,7 @@ data class Message(
     val attachment: String?,
     val deleted: Boolean,
     val reply: String?,
+    val mentions: Set<String> = emptySet(),
 )
 
 data class Person(
@@ -59,6 +64,10 @@ data class Person(
     val typing: Boolean,
     val received: Long,
     val read: Long?,
+    val role: String = "member",
+    val status: String = "",
+    val avatarPath: String? = null,
+    val code: String? = null,
 )
 
 data class Media(
@@ -68,6 +77,7 @@ data class Media(
     val mime: String,
     val name: String,
     val bytes: Long,
+    val sticker: Boolean = false,
 )
 
 data class Credentials(val access: String, val refresh: String, val expires: Long)
@@ -82,6 +92,9 @@ internal fun JSONObject.message() =
         optional("attachment_id"),
         optional("deleted_at") != null,
         optional("reply_to"),
+        optJSONArray("mention_ids")?.let { array ->
+            (0 until array.length()).map { array.getString(it) }.toSet()
+        } ?: emptySet(),
     )
 
 internal fun nativeTime(value: String): String =
@@ -92,3 +105,10 @@ internal fun nativeTime(value: String): String =
     } catch (_: Exception) {
         ""
     }
+
+internal data class NativeInvitation(
+    val id: String,
+    val email: String,
+    val expires: String,
+    val state: String,
+)

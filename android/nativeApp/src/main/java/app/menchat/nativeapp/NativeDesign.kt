@@ -70,7 +70,7 @@ private val darkPalette =
     )
 
 @Composable
-internal fun MenChatTheme(dark: Boolean, content: @Composable () -> Unit) {
+internal fun MenChatTheme(dark: Boolean, textScale: Float = 1f, content: @Composable () -> Unit) {
     val p = if (dark) darkPalette else lightPalette
     val colors =
         if (dark)
@@ -109,38 +109,42 @@ internal fun MenChatTheme(dark: Boolean, content: @Composable () -> Unit) {
                 Typography(
                     headlineLarge =
                         base.copy(
-                            fontSize = 30.sp,
-                            lineHeight = 36.sp,
+                            fontSize = (30 * textScale).sp,
+                            lineHeight = (36 * textScale).sp,
                             fontWeight = FontWeight.Bold,
                         ),
                     headlineSmall =
                         base.copy(
-                            fontSize = 24.sp,
-                            lineHeight = 30.sp,
+                            fontSize = (24 * textScale).sp,
+                            lineHeight = (30 * textScale).sp,
                             fontWeight = FontWeight.Bold,
                         ),
                     titleLarge =
                         base.copy(
-                            fontSize = 20.sp,
-                            lineHeight = 26.sp,
+                            fontSize = (20 * textScale).sp,
+                            lineHeight = (26 * textScale).sp,
                             fontWeight = FontWeight.SemiBold,
                         ),
                     titleMedium =
                         base.copy(
-                            fontSize = 16.sp,
-                            lineHeight = 22.sp,
+                            fontSize = (16 * textScale).sp,
+                            lineHeight = (22 * textScale).sp,
                             fontWeight = FontWeight.SemiBold,
                         ),
-                    bodyLarge = base.copy(fontSize = 16.sp, lineHeight = 23.sp),
-                    bodyMedium = base.copy(fontSize = 14.sp, lineHeight = 21.sp),
-                    bodySmall = base.copy(fontSize = 12.sp, lineHeight = 18.sp),
+                    bodyLarge =
+                        base.copy(fontSize = (16 * textScale).sp, lineHeight = (23 * textScale).sp),
+                    bodyMedium =
+                        base.copy(fontSize = (14 * textScale).sp, lineHeight = (21 * textScale).sp),
+                    bodySmall =
+                        base.copy(fontSize = (12 * textScale).sp, lineHeight = (18 * textScale).sp),
                     labelLarge =
                         base.copy(
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
+                            fontSize = (14 * textScale).sp,
+                            lineHeight = (20 * textScale).sp,
                             fontWeight = FontWeight.SemiBold,
                         ),
-                    labelSmall = base.copy(fontSize = 11.sp, lineHeight = 15.sp),
+                    labelSmall =
+                        base.copy(fontSize = (11 * textScale).sp, lineHeight = (15 * textScale).sp),
                 ),
             shapes =
                 Shapes(
@@ -155,6 +159,15 @@ internal fun MenChatTheme(dark: Boolean, content: @Composable () -> Unit) {
 
 // Small stroke icons matching the web, without a font or a second icon dependency.
 internal enum class Glyph(val paths: List<String>) {
+    Person(listOf("M16 7a4 4 0 1 1-8 0a4 4 0 0 1 8 0M4 21v-2a8 8 0 0 1 16 0v2")),
+    Bell(listOf("M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4")),
+    Shield(listOf("M12 2 3 6v6c0 5 9 10 9 10s9-5 9-10V6z")),
+    Next(listOf("m9 6 6 6-6 6")),
+    Star(listOf("m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z")),
+    Emoji(listOf("M21 12a9 9 0 1 1-18 0a9 9 0 0 1 18 0M8 9h.01M16 9h.01M8 14q4 5 8 0")),
+    Mention(listOf("M16 12a4 4 0 1 1-8 0a4 4 0 0 1 8 0V8m0 4v2a2 2 0 0 0 4 0v-2a8 8 0 1 0-3 6")),
+    Sticker(listOf("M3 3h18v10l-8 8H3zM13 21v-8h8")),
+    Phone(listOf("M7 3H3v4c0 8 6 14 14 14h4v-4l-5-3-3 3-6-6 3-3z")),
     Clip(
         listOf(
             "M21 11.5 12 20.5a6 6 0 0 1-8.5-8.5L13 2.5a4 4 0 0 1 5.5 5.5L9 17.5a2 2 0 0 1-2.8-2.8L15 6"

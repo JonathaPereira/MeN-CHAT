@@ -48,6 +48,7 @@ import { reserveUpload, uploadFile, discardUpload } from "@/lib/chat/media";
 import { RealAvatar } from "./real/avatar";
 import { RealMedia } from "./real/media";
 import { RealComposer } from "./real/composer";
+import { CallControls } from "./real/calls";
 import { CreateGroupDialog, GroupDialog } from "./real/group-dialog";
 type Pending = {
   id: string;
@@ -102,6 +103,12 @@ export function PrivateChat({
     sticky = useRef(true),
     typing = useRef({ value: false, at: 0, sent: 0 });
   const seenThreads = useRef<Map<string, string> | null>(null);
+  const [callAnchor, setCallAnchor] = useState<HTMLElement | null>(null);
+  const [callCovered, setCallCovered] = useState(false);
+  const onCallCovered = useCallback(
+    (value: boolean) => setCallCovered(value),
+    [],
+  );
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [deleting, setDeleting] = useState<ChatMessage | null>(null);
   useEffect(() => {
@@ -111,8 +118,17 @@ export function PrivateChat({
       !deleting &&
       !receipt &&
       !starList &&
-      !composerOverlay;
-  }, [panel, dialog, deleting, receipt, starList, composerOverlay]);
+      !composerOverlay &&
+      !callCovered;
+  }, [
+    panel,
+    dialog,
+    deleting,
+    receipt,
+    starList,
+    composerOverlay,
+    callCovered,
+  ]);
   const [welcome, setWelcome] = useState<{ name: string; code: string } | null>(
     null,
   );
@@ -331,7 +347,8 @@ export function PrivateChat({
           !document.hidden &&
           document.hasFocus() &&
           sticky.current &&
-          viewingChat.current && !document.querySelector("dialog[open]")
+          viewingChat.current &&
+          !document.querySelector("dialog[open]")
             ? latest
             : 0;
         const isTyping =
@@ -585,7 +602,10 @@ export function PrivateChat({
             scroller.current.scrollTop = scroller.current.scrollHeight;
         });
       }
-      void fetch("/api/push/dispatch", { method: "POST", keepalive: true }).catch(() => {});
+      void fetch("/api/push/dispatch", {
+        method: "POST",
+        keepalive: true,
+      }).catch(() => {});
       void refreshThreads();
       return true;
     } catch (error) {
@@ -692,6 +712,13 @@ export function PrivateChat({
   );
   return (
     <main className={`real-chat real-text-${settings.textSize}`} id="conteudo">
+      <CallControls
+        client={client}
+        actor={userId}
+        thread={selected}
+        anchor={callAnchor}
+        onCovered={onCallCovered}
+      />
       <aside
         className={`real-chat-list ${selected ? "real-list-hidden" : ""}`}
         aria-label="Conversas reais"
@@ -868,7 +895,9 @@ export function PrivateChat({
             </p>
           )}
         </nav>
-        <div className="install-list-entry"><InstallAppButton /></div>
+        <div className="install-list-entry">
+          <InstallAppButton />
+        </div>
         <footer className="real-list-footer">
           <Link
             href="/conta/perfil"
@@ -956,6 +985,10 @@ export function PrivateChat({
                   </span>
                 </span>
               </button>
+              <span
+                ref={setCallAnchor}
+                className="flex shrink-0 items-center"
+              />
               <button
                 className="icon-button"
                 aria-label="Mensagens marcadas"
@@ -1033,14 +1066,20 @@ export function PrivateChat({
                     <article
                       className={`message-bubble real-message ${mine ? "message-outgoing" : "message-incoming"}`}
                     >
-                      <button type="button" className="message-options-arrow"
-                        aria-label="Opções da mensagem" aria-haspopup="true"
+                      <button
+                        type="button"
+                        className="message-options-arrow"
+                        aria-label="Opções da mensagem"
+                        aria-haspopup="true"
                         aria-expanded={deleting?.id === m.id}
                         onClick={(e) => {
                           setMenuAnchor(e.currentTarget);
                           setError("");
                           setDeleting(deleting?.id === m.id ? null : m);
-                        }}><ChevronDown size={18} aria-hidden="true" /></button>
+                        }}
+                      >
+                        <ChevronDown size={18} aria-hidden="true" />
+                      </button>
                       {!mine && thread.kind === "group" && (
                         <p className="mb-1 text-xs font-semibold text-[var(--accent)]">
                           {author?.name || "Participante anterior"}
@@ -1249,7 +1288,11 @@ export function PrivateChat({
           </Modal>
         ))}
       {deleting && menuAnchor && (
-        <MessageMenu key={deleting.id} anchor={menuAnchor} onClose={() => setDeleting(null)}>
+        <MessageMenu
+          key={deleting.id}
+          anchor={menuAnchor}
+          onClose={() => setDeleting(null)}
+        >
           {error && (
             <p role="alert" className="form-error mb-3">
               {error}
@@ -1263,7 +1306,9 @@ export function PrivateChat({
                   setReply(deleting);
                   setDeleting(null);
                   requestAnimationFrame(() =>
-                    document.getElementById("real-message")?.focus({ preventScroll: true }),
+                    document
+                      .getElementById("real-message")
+                      ?.focus({ preventScroll: true }),
                   );
                 }}
               >

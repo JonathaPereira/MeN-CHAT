@@ -47,7 +47,7 @@ export const RealMedia = memo(function RealMedia({
       try {
         const result = await client
           .from("menchat_uploads")
-          .select("id,path,kind,name,mime,bytes")
+          .select("*")
           .eq("id", id)
           .maybeSingle<Upload>();
         if (!alive) return;
@@ -147,7 +147,11 @@ export const RealMedia = memo(function RealMedia({
                   width={480}
                   height={360}
                   alt="Foto enviada"
-                  className="max-h-72 w-full rounded-xl object-contain"
+                  className={
+                    item.is_sticker
+                      ? "max-h-48 w-full object-contain"
+                      : "max-h-72 w-full rounded-xl object-contain"
+                  }
                   onError={() => void recover()}
                 />
                 <Maximize2 className="photo-maximize" size={17} />

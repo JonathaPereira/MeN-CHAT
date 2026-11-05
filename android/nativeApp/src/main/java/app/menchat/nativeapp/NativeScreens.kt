@@ -4,17 +4,16 @@ package app.menchat.nativeapp
 
 import android.Manifest
 import android.app.Activity
-import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,9 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -50,23 +46,34 @@ internal fun MenChatNative(model: MainModel) {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
     }
     val view = LocalView.current
-    val prefs = remember {
-        context.getSharedPreferences("menchat-native-options", Context.MODE_PRIVATE)
-    }
-    var dark by remember { mutableStateOf(prefs.getBoolean("dark", true)) }
     val state by model.state.collectAsState()
+    val dark =
+        when (state.options.theme) {
+            "system" -> isSystemInDarkTheme()
+            "light" -> false
+            else -> true
+        }
+    val notificationPermission = rememberNotificationPermission(model)
+    val callPermission = rememberCallPermission(model)
+    val callState by model.calls.state.collectAsState()
     val owner = LocalLifecycleOwner.current
     var settings by remember { mutableStateOf(false) }
     var newConversation by remember { mutableStateOf(false) }
     var createGroup by remember { mutableStateOf(false) }
     var selectionMenu by remember { mutableStateOf<String?>(null) }
     var draftPreview by remember { mutableStateOf(false) }
+    var details by remember { mutableStateOf(false) }
+    var favorites by remember { mutableStateOf(false) }
+    var invites by remember { mutableStateOf(false) }
+    var expressions by remember { mutableStateOf(false) }
+    var stickers by remember { mutableStateOf(false) }
+    var chatActions by remember { mutableStateOf(false) }
     var actionMessage by remember { mutableStateOf<Message?>(null) }
     val themeChange = {
-        dark = !dark
-        prefs.edit().putBoolean("dark", dark).apply()
+        model.options(state.options.copy(theme = if (dark) "light" else "dark"))
         Unit
     }
+    LaunchedEffect(state.account?.id) { if (state.account != null) model.initializeServices() }
     SideEffect {
         (context as? Activity)?.let { activity ->
             WindowCompat.getInsetsController(activity.window, view).apply {
@@ -81,7 +88,32 @@ internal fun MenChatNative(model: MainModel) {
                 actionMessage != null ||
                 state.error != null ||
                 state.profile != null ||
-                selectionMenu != null
+                selectionMenu != null ||
+                details ||
+                favorites ||
+                invites ||
+                expressions ||
+                stickers ||
+                chatActions ||
+                state.stickerSource != null ||
+                callState.busy ||
+                callState.incoming != null ||
+                (callState.active != null && callState.expanded)
+        NativeNotifications.visibleThread =
+            state.selected?.id?.takeIf {
+                model.foreground &&
+                    model.atBottom &&
+                    !model.covered &&
+                    !model.mediaCovered &&
+                    !model.pickerCovered
+            }
+    }
+    LaunchedEffect(favorites, state.selected?.id) {
+        if (favorites)
+            while (true) {
+                delay(3000)
+                model.refreshFavorites()
+            }
     }
     LaunchedEffect(owner, state.account?.id) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -95,6 +127,12 @@ internal fun MenChatNative(model: MainModel) {
         actionMessage = null
         selectionMenu = null
         draftPreview = false
+        details = false
+        favorites = false
+        chatActions = false
+        expressions = false
+        stickers = false
+        if (state.selected != null) model.loadStars()
     }
     BackHandler(
         state.selected != null &&
@@ -105,12 +143,19 @@ internal fun MenChatNative(model: MainModel) {
             !createGroup &&
             state.profile == null &&
             !draftPreview &&
-            selectionMenu == null
+            selectionMenu == null &&
+            !details &&
+            !favorites &&
+            !invites &&
+            !expressions &&
+            !stickers &&
+            !chatActions &&
+            state.stickerSource == null
     ) {
         model.select(null)
     }
     CompositionLocalProvider(LocalAvatarSigner provides signer) {
-        MenChatTheme(dark) {
+        MenChatTheme(dark, state.options.textScale) {
             val p = LocalChatPalette.current
             Surface(Modifier.fillMaxSize(), color = p.canvas) {
                 when {
@@ -143,7 +188,7 @@ internal fun MenChatNative(model: MainModel) {
                                     model::reply,
                                     model::delete,
                                     model::history,
-                                    { model.atBottom = it },
+                                    model::bottom,
                                     actionMessage,
                                     { actionMessage = it },
                                     composer = {
@@ -153,9 +198,12 @@ internal fun MenChatNative(model: MainModel) {
                                             { selectionMenu = "attach" },
                                             { selectionMenu = "camera" },
                                             { draftPreview = true },
+                                            { expressions = true },
                                         )
                                     },
                                     media = { NativeMedia(model, it) },
+                                    onDetails = { chatActions = true },
+                                    onStar = model::star,
                                 )
                             }
                         }
@@ -237,31 +285,158 @@ internal fun MenChatNative(model: MainModel) {
                         model.open(it)
                     }
                 if (createGroup)
-                    TextPrompt("Criar grupo", "Nome do grupo", 60, false, { createGroup = false }) {
-                        createGroup = false
-                        model.group(it)
-                    }
+                    NativeCreateGroup(
+                        state.busy,
+                        { name, codes ->
+                            createGroup = false
+                            model.group(name, codes)
+                        },
+                        { createGroup = false },
+                    )
                 if (settings && state.account != null)
+                    NativeSettings(
+                        state,
+                        version,
+                        model::options,
+                        {
+                            settings = false
+                            model.beginProfile()
+                        },
+                        { NativeNotificationControls(model, state, notificationPermission) },
+                        {
+                            settings = false
+                            invites = true
+                            model.loadInvitations()
+                        },
+                        {
+                            settings = false
+                            model.logout()
+                        },
+                        { settings = false },
+                    )
+                if (details && state.selected != null)
+                    NativeGroupDetails(
+                        state,
+                        model::manageGroup,
+                        {
+                            val id = state.selected!!.id
+                            model.options(
+                                state.options.copy(
+                                    muted =
+                                        if (id in state.options.muted) state.options.muted - id
+                                        else state.options.muted + id
+                                )
+                            )
+                        },
+                        { details = false },
+                    )
+                if (favorites)
+                    NativeFavorites(
+                        state,
+                        model::star,
+                        model::reply,
+                        { NativeMedia(model, it) },
+                        { favorites = false },
+                    )
+                if (invites && state.account?.admin == true)
+                    NativeInvitations(
+                        state,
+                        model::invite,
+                        model::revokeInvite,
+                        {
+                            invites = false
+                            model.forgetInvitation()
+                        },
+                    )
+                if (expressions)
+                    NativeEmojiPicker(
+                        model::insertEmoji,
+                        if (state.selected?.group == true) state.people else emptyList(),
+                        model::mention,
+                        {
+                            expressions = false
+                            stickers = true
+                        },
+                        { expressions = false },
+                    )
+                if (stickers && state.stickerSource == null)
+                    NativeStickerPicker(
+                        state.stickers,
+                        state.busy,
+                        selections.sticker,
+                        {
+                            model.chooseSticker(it)
+                            stickers = false
+                        },
+                        model::removeSticker,
+                        { stickers = false },
+                    )
+                state.stickerSource?.let { source ->
+                    NativeStickerEditor(source, state.busy, model::saveSticker, model::closeSticker)
+                }
+                if (chatActions && state.selected != null)
                     ModalBottomSheet(
-                        onDismissRequest = { settings = false },
+                        onDismissRequest = { chatActions = false },
                         containerColor = p.panel,
-                        dragHandle = { BottomSheetDefaults.DragHandle(color = p.line) },
                     ) {
-                        AccountPanel(
-                            state.account!!,
-                            version,
-                            dark,
-                            themeChange,
-                            {
-                                settings = false
-                                model.beginProfile()
-                            },
-                            {
-                                settings = false
-                                model.logout()
-                            },
-                        )
+                        if (state.callsReady && state.selected?.canSend == true) {
+                            MediaChoice(Glyph.Phone, "Chamada de voz") {
+                                chatActions = false
+                                callPermission(false, false)
+                            }
+                            MediaChoice(Glyph.Video, "Chamada de vídeo") {
+                                chatActions = false
+                                callPermission(true, false)
+                            }
+                        }
+                        MediaChoice(
+                            Glyph.Info,
+                            if (state.selected!!.group) "Detalhes e participantes"
+                            else "Ver contato",
+                        ) {
+                            chatActions = false
+                            details = true
+                        }
+                        MediaChoice(Glyph.Star, "Mensagens favoritas") {
+                            chatActions = false
+                            favorites = true
+                            model.loadFavorites()
+                        }
                     }
+                if (state.account != null)
+                    NativeCallScreen(model.calls, callState, state.account!!.id, callPermission)
+                if (callState.active != null && !callState.expanded)
+                    Box(
+                        Modifier.fillMaxSize().safeDrawingPadding().padding(12.dp),
+                        contentAlignment = Alignment.TopCenter,
+                    ) {
+                        FilledTonalButton(onClick = { model.calls.expand() }) {
+                            Text("Chamada em andamento · Abrir")
+                        }
+                    }
+                state.banner?.let { banner ->
+                    LaunchedEffect(banner.key) {
+                        delay(5000)
+                        model.clearBanner()
+                    }
+                    Box(
+                        Modifier.fillMaxSize().safeDrawingPadding().padding(12.dp),
+                        contentAlignment = Alignment.TopCenter,
+                    ) {
+                        Snackbar(
+                            action = {
+                                TextButton(onClick = { model.openBanner(banner.thread) }) {
+                                    Text("Ver")
+                                }
+                            },
+                            dismissAction = {
+                                TextButton(onClick = model::clearBanner) { Text("Fechar") }
+                            },
+                        ) {
+                            Text("${banner.title}: ${banner.body}")
+                        }
+                    }
+                }
             }
         }
     }
@@ -285,6 +460,7 @@ private fun MediaChoice(glyph: Glyph, label: String, click: () -> Unit) {
 @Composable
 internal fun NativeLogin(busy: Boolean, onLogin: (String, String) -> Unit) {
     val p = LocalChatPalette.current
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
@@ -349,6 +525,22 @@ internal fun NativeLogin(busy: Boolean, onLogin: (String, String) -> Unit) {
                         if (busy)
                             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                         else Text("Entrar")
+                    }
+                    TextButton(
+                        onClick = {
+                            uriHandler.openUri("https://men-chat.vercel.app/primeiro-acesso")
+                        },
+                        enabled = !busy,
+                    ) {
+                        Text("Primeiro acesso")
+                    }
+                    TextButton(
+                        onClick = {
+                            uriHandler.openUri("https://men-chat.vercel.app/primeiro-acesso")
+                        },
+                        enabled = !busy,
+                    ) {
+                        Text("Esqueci minha senha")
                     }
                 }
             }
@@ -417,108 +609,13 @@ private fun TextPrompt(
 }
 
 @Composable
-private fun AccountPanel(
-    account: Account,
-    version: String,
-    dark: Boolean,
-    theme: () -> Unit,
-    edit: () -> Unit,
-    logout: () -> Unit,
-) {
-    val p = LocalChatPalette.current
-    Column(
-        Modifier.fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-    ) {
-        Text("Minha conta", style = MaterialTheme.typography.headlineSmall)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            ChatAvatar(account.name, false, 56, account.avatarPath)
-            Column(Modifier.weight(1f)) {
-                Text(account.name, style = MaterialTheme.typography.titleMedium)
-                if (account.status.isNotBlank())
-                    Text(
-                        account.status,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = p.muted,
-                    )
-            }
-        }
-        Surface(color = p.canvas, shape = RoundedCornerShape(14.dp)) {
-            Column(
-                Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                Text("SEU CÓDIGO", style = MaterialTheme.typography.labelSmall, color = p.muted)
-                SelectionContainer {
-                    Text(
-                        account.code,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = p.accent,
-                    )
-                }
-            }
-        }
-        OutlinedButton(
-            onClick = edit,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            shape = RoundedCornerShape(14.dp),
-        ) {
-            Text("Editar perfil")
-        }
-        HorizontalDivider(color = p.line)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            ChatIcon(if (dark) Glyph.Moon else Glyph.Sun, tint = p.accent)
-            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text("Modo escuro", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Aparência deste aparelho",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = p.muted,
-                )
-            }
-            Switch(
-                checked = dark,
-                onCheckedChange = { theme() },
-                modifier = Modifier.semantics { contentDescription = "Modo escuro" },
-            )
-        }
-        Text(
-            "Novas mensagens são atualizadas enquanto o aplicativo está aberto.",
-            style = MaterialTheme.typography.bodySmall,
-            color = p.muted,
-        )
-        OutlinedButton(
-            onClick = logout,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            shape = RoundedCornerShape(14.dp),
-        ) {
-            ChatIcon(Glyph.Logout, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(10.dp))
-            Text("Sair da conta")
-        }
-        Text(
-            "MenChat $version",
-            color = p.muted,
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
-    }
-}
-
-@Composable
 private fun NativeComposer(
     model: MainModel,
     state: NativeState,
     attach: () -> Unit,
     camera: () -> Unit,
     preview: () -> Unit,
+    expressions: () -> Unit,
 ) {
     val context = LocalContext.current
     var permissionThread by remember { mutableStateOf<String?>(null) }
@@ -557,5 +654,7 @@ private fun NativeComposer(
         camera = camera,
         discardMedia = model::discardAttachment,
         preview = preview,
+        expressions = expressions,
+        onSelection = model::cursor,
     )
 }

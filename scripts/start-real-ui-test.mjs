@@ -21,6 +21,15 @@ const child = spawn(
       NEXT_PUBLIC_SUPABASE_URL: "https://menchat.invalid",
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_ui_test",
       SUPABASE_SECRET_KEY: "",
+      // Keep optional external services inert even when .env.local is configured.
+      MENCHAT_FIREBASE_APP_ID: "",
+      MENCHAT_FIREBASE_PROJECT_ID: "",
+      MENCHAT_FIREBASE_SENDER_ID: "",
+      MENCHAT_FIREBASE_API_KEY: "",
+      MENCHAT_FIREBASE_CLIENT_EMAIL: "",
+      MENCHAT_FIREBASE_PRIVATE_KEY: "",
+      MENCHAT_TURN_URLS: "",
+      MENCHAT_TURN_SECRET: "",
       NODE_OPTIONS: [process.env.NODE_OPTIONS, `--import=${preload}`]
         .filter(Boolean)
         .join(" "),
