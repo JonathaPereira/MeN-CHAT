@@ -187,7 +187,7 @@ internal fun ConversationInbox(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    ChatAvatar(thread.name, thread.group)
+                    ChatAvatar(thread.name, thread.group, avatarPath = thread.avatarPath)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
                             thread.name,

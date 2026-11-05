@@ -5,6 +5,7 @@ package app.menchat.nativeapp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,11 +22,14 @@ import coil.request.ImageRequest
 import java.net.URL
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
 internal fun NativeMedia(model: MainModel, id: String) {
+    var expanded by remember(id) { mutableStateOf(false) }
+    var unavailable by remember(id) { mutableStateOf(false) }
     var media by remember(id) { mutableStateOf<Media?>(null) }
     var url by remember(id) { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -73,13 +77,43 @@ internal fun NativeMedia(model: MainModel, id: String) {
         } catch (cancel: CancellationException) {
             throw cancel
         } catch (_: Exception) {
-            model.error("Anexo indisponível.")
+            unavailable = true
         }
     }
     val item = media
     if (item == null) {
-        Text("Carregando anexo…", style = MaterialTheme.typography.bodySmall)
+        Text(
+            if (unavailable) "Anexo indisponível" else "Carregando anexo…",
+            style = MaterialTheme.typography.bodySmall,
+        )
         return
+    }
+    if (expanded) {
+        DisposableEffect(id) {
+            model.mediaCovered = true
+            model.audio.stop()
+            onDispose { model.mediaCovered = false }
+        }
+        MediaPreview(
+            item.kind,
+            item.name,
+            { withContext(Dispatchers.IO) { model.gateway.signed(item) } },
+            { expanded = false },
+        )
+    }
+    LaunchedEffect(item.id, item.kind) {
+        if (item.kind == "image")
+            while (true) {
+                delay(240_000)
+                try {
+                    url = withContext(Dispatchers.IO) { model.gateway.signed(item) }
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (_: Exception) {
+                    url = null
+                    unavailable = true
+                }
+            }
     }
     if (item.kind == "image" && url != null)
         AsyncImage(
@@ -90,7 +124,10 @@ internal fun NativeMedia(model: MainModel, id: String) {
                     .build(),
             contentDescription = "Foto enviada",
             modifier =
-                Modifier.fillMaxWidth().heightIn(max = 250.dp).clip(RoundedCornerShape(10.dp)),
+                Modifier.fillMaxWidth()
+                    .heightIn(min = 80.dp, max = 250.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(onClickLabel = "Ampliar foto") { expanded = true },
         )
     if (item.kind == "audio") {
         AudioTransport(
@@ -115,12 +152,20 @@ internal fun NativeMedia(model: MainModel, id: String) {
             onSeek = model.audio::seek,
             onDownload = { save.launch(item.name) },
         )
-    } else if (item.kind != "image")
-        Text(
-            if (item.kind == "video") "Vídeo" else item.name,
-            maxLines = 2,
-            style = MaterialTheme.typography.bodySmall,
-        )
+    } else if (item.kind == "video")
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp),
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            ChatIcon(Glyph.Play, tint = LocalChatPalette.current.accent)
+            Spacer(Modifier.width(8.dp))
+            Text("Reproduzir vídeo")
+        }
+    else if (item.kind == "document")
+        Text(item.name, maxLines = 2, style = MaterialTheme.typography.bodySmall)
+    else if (item.kind == "image" && url == null)
+        Text("Foto indisponível", style = MaterialTheme.typography.bodySmall)
     if (item.kind != "audio")
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             ChatIconButton(Glyph.Download, "Baixar anexo", onClick = { save.launch(item.name) })
@@ -133,7 +178,7 @@ internal fun AudioTransport(
     id: String,
     onToggle: () -> Unit,
     onSeek: (Float) -> Unit,
-    onDownload: () -> Unit,
+    onDownload: (() -> Unit)?,
 ) {
     val p = LocalChatPalette.current
     val active = audio.id == id
@@ -198,6 +243,6 @@ internal fun AudioTransport(
                 color = p.muted,
             )
         }
-        ChatIconButton(Glyph.Download, "Baixar áudio", onClick = onDownload)
+        if (onDownload != null) ChatIconButton(Glyph.Download, "Baixar áudio", onClick = onDownload)
     }
 }

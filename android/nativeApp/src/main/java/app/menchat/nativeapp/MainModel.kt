@@ -2,6 +2,7 @@ package app.menchat.nativeapp
 
 import android.app.Application
 import android.media.MediaRecorder
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import java.io.File
@@ -12,6 +13,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -31,6 +33,9 @@ internal data class NativeState(
     val seconds: Int = 0,
     val error: String? = null,
     val reply: Message? = null,
+    val attachment: LocalAttachment? = null,
+    val profile: ProfileDraft? = null,
+    val retrySend: Boolean = false,
 )
 
 internal class MainModel(application: Application, val gateway: Gateway) :
@@ -40,6 +45,8 @@ internal class MainModel(application: Application, val gateway: Gateway) :
     var foreground = false
     var atBottom = true
     var covered = false
+    var mediaCovered = false
+    var pickerCovered = false
     val audio = NativeAudio(application) { error(it) }
     private val vault = SessionVault(application)
     private val mutable = MutableStateFlow(NativeState(restoring = vault.contains()))
@@ -49,6 +56,22 @@ internal class MainModel(application: Application, val gateway: Gateway) :
     private var seenSeq = -1L
     private var pendingId = UUID.randomUUID().toString()
     private var upload: PreparedVoice? = null
+    private var attempt: SendAttempt? = null
+    private var avatarUpload: PreparedVoice? = null
+    private var avatarUploaded = false
+    private val localMedia = NativeLocalMedia(application)
+
+    private data class SendAttempt(
+        val actor: String,
+        val id: String,
+        val thread: String,
+        val body: String,
+        val reply: String?,
+        val file: LocalAttachment?,
+        var prepared: PreparedVoice?,
+        var publishing: Boolean = false,
+    )
+
     private var recorder: MediaRecorder? = null
     private var ticker: Job? = null
     private var file: File? = null
@@ -98,15 +121,46 @@ internal class MainModel(application: Application, val gateway: Gateway) :
         generation++
         stopRecording(true)
         state.value.voice?.delete()
+        state.value.attachment?.file?.delete()
+        state.value.profile?.photo?.file?.delete()
         audio.stop()
         withContext(Dispatchers.IO) {
+            runCatching { upload?.let { gateway.discardFile(it) } }
+            runCatching { avatarUpload?.let { gateway.discardFile(it) } }
+
             try {
                 gateway.logout()
             } catch (_: Exception) {} finally {
                 vault.clear()
             }
         }
+        upload = null
+        attempt = null
+        avatarUpload = null
+        avatarUploaded = false
         change { NativeState() }
+    }
+
+    private fun abandon(item: PreparedVoice?) {
+        if (item == null) return
+        val actor = state.value.account?.id
+        viewModelScope.launch {
+            try {
+                if (state.value.account?.id == actor)
+                    withContext(Dispatchers.IO) { gateway.discardFile(item) }
+            } catch (cancel: CancellationException) {
+                throw cancel
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun clearFiles() {
+        state.value.voice?.delete()
+        state.value.attachment?.file?.delete()
+        abandon(upload)
+        upload = null
+        attempt = null
+        pendingId = UUID.randomUUID().toString()
     }
 
     fun select(thread: Conversation?) {
@@ -114,13 +168,15 @@ internal class MainModel(application: Application, val gateway: Gateway) :
         generation++
         audio.stop()
         stopRecording(true)
-        state.value.voice?.delete()
+        clearFiles()
         seenSeq = -1
         pendingId = UUID.randomUUID().toString()
         upload = null
         change {
             it.copy(
                 selected = thread,
+                attachment = null,
+                retrySend = false,
                 older = false,
                 notice = null,
                 messages = emptyList(),
@@ -217,7 +273,14 @@ internal class MainModel(application: Application, val gateway: Gateway) :
             }
             if (!current()) return
             val latest = messages.lastOrNull()?.seq ?: 0
-            if (latest > seenSeq && foreground && atBottom && !covered) {
+            if (
+                latest > seenSeq &&
+                    foreground &&
+                    atBottom &&
+                    !covered &&
+                    !mediaCovered &&
+                    !pickerCovered
+            ) {
                 try {
                     withContext(Dispatchers.IO) { gateway.seen(target.id, latest) }
                     if (!current()) return
@@ -275,7 +338,7 @@ internal class MainModel(application: Application, val gateway: Gateway) :
     }
 
     fun text(value: String) {
-        if (value.length > 4000) return
+        if (value.length > 4000 || attempt != null || state.value.busy) return
         if (state.value.text == value) return
         pendingId = UUID.randomUUID().toString()
         change { it.copy(text = value) }
@@ -298,36 +361,277 @@ internal class MainModel(application: Application, val gateway: Gateway) :
     }
 
     fun reply(message: Message?) {
+        if (attempt != null || state.value.busy) return
         pendingId = UUID.randomUUID().toString()
         change { it.copy(reply = message) }
     }
 
     fun send() = action {
-        val s = state.value
-        val target = s.selected ?: return@action
+        val state = state.value
+        val target = state.selected ?: return@action
         require(target.canSend) { "Você não pode enviar nesta conversa." }
-        require(s.text.isNotBlank() || s.voice != null) { "Escreva ou grave um áudio." }
-        val saved =
-            withContext(Dispatchers.IO) {
-                if (s.voice != null) {
-                    if (upload == null) upload = gateway.reserveVoice(target.id, s.voice)
-                    gateway.uploadVoice(upload!!, s.voice)
+        val actor = state.account?.id ?: return@action
+        require(state.text.isNotBlank() || state.attachment != null || state.voice != null) {
+            "Escreva ou escolha um anexo."
+        }
+        val pending =
+            attempt
+                ?: SendAttempt(
+                        actor,
+                        pendingId,
+                        target.id,
+                        state.text.trim(),
+                        state.reply?.id,
+                        state.attachment
+                            ?: state.voice?.let {
+                                LocalAttachment(it, it.name, "audio/mp4", "audio")
+                            },
+                        upload,
+                    )
+                    .also { attempt = it }
+        require(pending.actor == actor && pending.thread == target.id)
+        require(pending.body.isNotBlank() || pending.file != null) {
+            "Escreva ou escolha um anexo."
+        }
+        try {
+            val saved =
+                withContext(Dispatchers.IO) {
+                    val confirmed =
+                        if (pending.publishing) gateway.findSent(pending.id, pending.thread)
+                        else null
+                    if (confirmed != null) {
+                        require(
+                            confirmed.sender == actor &&
+                                (confirmed.deleted ||
+                                    (confirmed.text == pending.body &&
+                                        confirmed.attachment == pending.prepared?.id &&
+                                        confirmed.reply == pending.reply))
+                        ) {
+                            "Não foi possível confirmar esse envio."
+                        }
+                        confirmed
+                    } else {
+                        if (!pending.publishing && pending.file != null) {
+                            if (pending.prepared == null)
+                                pending.prepared =
+                                    gateway.reserveFile(target.id, pending.file).also {
+                                        upload = it
+                                    }
+                            gateway.uploadFile(pending.prepared!!, pending.file)
+                        }
+                        pending.publishing = true
+                        gateway.send(
+                            pending.id,
+                            pending.thread,
+                            pending.body,
+                            pending.prepared?.id,
+                            pending.reply,
+                        )
+                    }
                 }
-                gateway.send(pendingId, target.id, s.text.trim(), upload?.id, s.reply?.id)
+            generation++
+            pending.file?.file?.delete()
+            upload = null
+            attempt = null
+            pendingId = UUID.randomUUID().toString()
+            change {
+                it.copy(
+                    text = "",
+                    voice = null,
+                    attachment = null,
+                    retrySend = false,
+                    reply = null,
+                    messages =
+                        (it.messages + saved).distinctBy { m -> m.id }.sortedBy { m -> m.seq },
+                )
             }
-        generation++
-        s.voice?.delete()
-        upload = null
-        pendingId = UUID.randomUUID().toString()
+            refresh()
+        } catch (error: Exception) {
+            val rejected =
+                error is NativeApiException && error.status in 400..499 && error.status != 408
+            if (!pending.publishing || rejected) attempt = null
+            change { it.copy(retrySend = attempt != null) }
+            throw error
+        }
+    }
+
+    fun discardAttachment() = action {
+        val item = upload
+        val wasRetry = state.value.retrySend
+        try {
+            if (item != null) withContext(Dispatchers.IO) { gateway.discardFile(item) }
+        } finally {
+            state.value.attachment?.file?.delete()
+            state.value.voice?.delete()
+            upload = null
+            attempt = null
+            pendingId = UUID.randomUUID().toString()
+            change {
+                it.copy(
+                    attachment = null,
+                    voice = null,
+                    retrySend = false,
+                    reply = null,
+                    text = if (wasRetry) "" else it.text,
+                )
+            }
+        }
+    }
+
+    fun beginProfile() {
+        if (state.value.busy || state.value.recording) return
+        val account = state.value.account ?: return
         change {
             it.copy(
-                text = "",
-                voice = null,
-                reply = null,
-                messages = (it.messages + saved).distinctBy { m -> m.id }.sortedBy { m -> m.seq },
+                profile =
+                    ProfileDraft(
+                        account.name,
+                        account.status,
+                        account.showCode,
+                        account.lookup,
+                        account.readReceipts,
+                        account.showTyping,
+                    )
             )
         }
+    }
+
+    fun editProfile(draft: ProfileDraft) {
+        if (!state.value.busy) change { it.copy(profile = draft) }
+    }
+
+    fun closeProfile() = action {
+        try {
+            avatarUpload?.let { withContext(Dispatchers.IO) { gateway.discardFile(it) } }
+        } finally {
+            state.value.profile?.photo?.file?.delete()
+            avatarUpload = null
+            avatarUploaded = false
+            change { it.copy(profile = null) }
+        }
+    }
+
+    fun removeProfilePhoto() = action {
+        try {
+            avatarUpload?.let { withContext(Dispatchers.IO) { gateway.discardFile(it) } }
+        } finally {
+            state.value.profile?.photo?.file?.delete()
+            avatarUpload = null
+            avatarUploaded = false
+            change { it.copy(profile = it.profile?.copy(photo = null, removePhoto = true)) }
+        }
+    }
+
+    fun saveProfile() = action {
+        val actor = state.value.account?.id ?: return@action
+        val draft = state.value.profile ?: return@action
+        val previous = state.value.account?.avatarPath
+        val account =
+            withContext(Dispatchers.IO) {
+                if (draft.photo != null) {
+                    if (avatarUpload == null) avatarUpload = gateway.reserveFile(null, draft.photo)
+                    if (!avatarUploaded) {
+                        gateway.uploadFile(avatarUpload!!, draft.photo)
+                        avatarUploaded = true
+                    }
+                }
+                gateway.saveProfile(draft, avatarUpload?.id)
+                gateway.account()
+            }
+        if (state.value.account?.id != actor) return@action
+        draft.photo?.file?.delete()
+        avatarUpload = null
+        avatarUploaded = false
+        change { it.copy(account = account, profile = null) }
+        if (previous != null && previous != account.avatarPath) {
+            withContext(Dispatchers.IO) { runCatching { gateway.retireAvatar(actor, previous) } }
+        }
         refresh()
+    }
+
+    fun receiveSelection(
+        uri: Uri?,
+        actor: String,
+        thread: String?,
+        profile: Boolean,
+        capture: java.io.File? = null,
+        video: Boolean = false,
+    ) {
+        if (uri == null && capture == null) return
+        val restored = state.value.restoring
+        viewModelScope.launch {
+            state.first { !it.restoring }
+            if (state.value.account?.id != actor || state.value.busy) {
+                capture?.delete()
+                return@launch
+            }
+            if (!profile && state.value.selected?.id != thread) {
+                if (restored && state.value.selected == null) {
+                    val target =
+                        withContext(Dispatchers.IO) {
+                            runCatching {
+                                    gateway.conversations().find { it.id == thread && it.canSend }
+                                }
+                                .getOrNull()
+                        }
+                    if (target == null) {
+                        capture?.delete()
+                        return@launch
+                    }
+                    select(target)
+                } else {
+                    capture?.delete()
+                    return@launch
+                }
+            }
+            if (profile && state.value.profile == null) beginProfile()
+            action {
+                var prepared: LocalAttachment? = null
+                try {
+                    withContext(Dispatchers.IO) {
+                        prepared =
+                            if (capture != null) localMedia.captured(capture, video, profile)
+                            else localMedia.import(uri!!, profile)
+                    }
+                    require(
+                        state.value.account?.id == actor &&
+                            (profile ||
+                                (state.value.selected?.id == thread &&
+                                    state.value.selected?.canSend == true))
+                    ) {
+                        "A conversa não está mais disponível."
+                    }
+                    if (profile) {
+                        avatarUpload?.let {
+                            withContext(Dispatchers.IO) { gateway.discardFile(it) }
+                        }
+                        state.value.profile?.photo?.file?.delete()
+                        avatarUpload = null
+                        avatarUploaded = false
+                        change {
+                            it.copy(
+                                profile = it.profile?.copy(photo = prepared, removePhoto = false)
+                            )
+                        }
+                    } else {
+                        require(
+                            state.value.voice == null && !state.value.recording && attempt == null
+                        ) {
+                            "Conclua ou descarte o áudio anterior."
+                        }
+                        state.value.attachment?.file?.delete()
+                        abandon(upload)
+                        upload = null
+                        pendingId = UUID.randomUUID().toString()
+                        change { it.copy(attachment = prepared) }
+                    }
+                    prepared = null
+                } finally {
+                    prepared?.file?.delete()
+                    capture?.delete()
+                }
+            }
+        }
     }
 
     fun open(code: String) = action {
@@ -338,8 +642,15 @@ internal class MainModel(application: Application, val gateway: Gateway) :
         val threads = withContext(Dispatchers.IO) { gateway.conversations() }
         val target = threads.find { it.id == id } ?: kotlin.error("Conversa indisponível.")
         generation++
+        clearFiles()
+        audio.stop()
         change {
             it.copy(
+                attachment = null,
+                voice = null,
+                text = "",
+                reply = null,
+                retrySend = false,
                 threads = threads,
                 selected = target,
                 messages = emptyList(),
@@ -354,8 +665,15 @@ internal class MainModel(application: Application, val gateway: Gateway) :
         val id = withContext(Dispatchers.IO) { gateway.createGroup(name) }
         val threads = withContext(Dispatchers.IO) { gateway.conversations() }
         generation++
+        clearFiles()
+        audio.stop()
         change {
             it.copy(
+                attachment = null,
+                voice = null,
+                text = "",
+                reply = null,
+                retrySend = false,
                 threads = threads,
                 selected = threads.find { c -> c.id == id },
                 messages = emptyList(),
@@ -421,6 +739,8 @@ internal class MainModel(application: Application, val gateway: Gateway) :
             state.value.recording ||
                 state.value.busy ||
                 state.value.voice != null ||
+                state.value.attachment != null ||
+                attempt != null ||
                 state.value.selected?.canSend != true
         )
             return
@@ -502,9 +822,7 @@ internal class MainModel(application: Application, val gateway: Gateway) :
 
     fun discardVoice() {
         if (state.value.recording) stopRecording(true)
-        state.value.voice?.delete()
-        upload = null
-        change { it.copy(voice = null) }
+        discardAttachment()
     }
 
     fun onBackground() {
@@ -520,6 +838,8 @@ internal class MainModel(application: Application, val gateway: Gateway) :
         audio.stop()
         stopRecording(true)
         state.value.voice?.delete()
+        state.value.attachment?.file?.delete()
+        state.value.profile?.photo?.file?.delete()
         super.onCleared()
     }
 }

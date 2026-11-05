@@ -1,5 +1,7 @@
 # Android 2.1.0 — interface baseada na web
 
+A versão atual é a [2.2.0, com câmera, anexos e perfil](android-midia-perfil-2.2.md). Este documento preserva a entrega 2.1.0.
+
 Esta entrega conclui o reboot visual da etapa 2 do [roteiro de paridade](roteiro-paridade-android.md), preservando a integração real existente. O APK continua nativo em Kotlin/Compose, sem WebView ou abertura do Chrome para o chat.
 
 ## O que mudou

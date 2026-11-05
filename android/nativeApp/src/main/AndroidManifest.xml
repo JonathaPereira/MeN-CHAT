@@ -1,7 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <application android:allowBackup="false" android:label="MenChat" android:icon="@mipmap/ic_launcher" android:theme="@style/Theme.MenChat" android:usesCleartextTraffic="false" android:supportsRtl="true">
+        <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.capture" android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/capture_paths" />
+        </provider>
         <activity android:name=".NativeActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <!-- Keep the old launcher component so pinned icons survive the update. This is an alias, not a browser Activity. -->
         <activity-alias android:name="com.google.androidbrowserhelper.trusted.LauncherActivity" android:targetActivity=".NativeActivity" android:exported="true">

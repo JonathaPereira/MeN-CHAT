@@ -8,7 +8,28 @@ internal fun JSONObject.optional(key: String): String? =
 
 internal fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }
 
-data class Account(val id: String, val name: String, val code: String, val status: String)
+data class Account(
+    val id: String,
+    val name: String,
+    val code: String,
+    val status: String,
+    val avatarPath: String? = null,
+    val showCode: Boolean = true,
+    val lookup: Boolean = true,
+    val readReceipts: Boolean = true,
+    val showTyping: Boolean = true,
+)
+
+internal data class ProfileDraft(
+    val name: String,
+    val status: String,
+    val showCode: Boolean,
+    val lookup: Boolean,
+    val readReceipts: Boolean,
+    val showTyping: Boolean,
+    val photo: LocalAttachment? = null,
+    val removePhoto: Boolean = false,
+)
 
 data class Conversation(
     val id: String,
@@ -18,6 +39,7 @@ data class Conversation(
     val preview: String,
     val unread: Int,
     val lastAt: String? = null,
+    val avatarPath: String? = null,
 )
 
 data class Message(

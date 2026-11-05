@@ -10,18 +10,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 
 internal data class ChatPalette(
     val canvas: Color,
@@ -147,6 +155,18 @@ internal fun MenChatTheme(dark: Boolean, content: @Composable () -> Unit) {
 
 // Small stroke icons matching the web, without a font or a second icon dependency.
 internal enum class Glyph(val paths: List<String>) {
+    Clip(
+        listOf(
+            "M21 11.5 12 20.5a6 6 0 0 1-8.5-8.5L13 2.5a4 4 0 0 1 5.5 5.5L9 17.5a2 2 0 0 1-2.8-2.8L15 6"
+        )
+    ),
+    Camera(listOf("M3 6h4l2-3h6l2 3h4v15H3z", "M16 13a4 4 0 1 1-8 0a4 4 0 0 1 8 0")),
+    Photo(listOf("M3 3h18v18H3zM3 17l6-6 4 4 3-3 5 5M8 7h.01")),
+    Video(listOf("M3 5h12v14H3zM15 9l6-4v14l-6-4")),
+    File(listOf("M14 2H4v20h16V8zM14 2v6h6M8 13h8M8 17h6")),
+    ZoomIn(
+        listOf("M4 4h6M4 4v6M20 20h-6M20 20v-6M14 10l6-6M20 4h-6M20 4v6M10 14l-6 6M4 20v-6M4 20h6")
+    ),
     Search(listOf("M21 21l-4.3-4.3", "M19 11a8 8 0 1 1-16 0a8 8 0 0 1 16 0")),
     Plus(listOf("M12 5v14M5 12h14")),
     Settings(
@@ -251,8 +271,26 @@ internal fun BrandMark(compact: Boolean = false) {
     }
 }
 
+internal val LocalAvatarSigner = staticCompositionLocalOf<(suspend (String) -> String)?> { null }
+
 @Composable
-internal fun ChatAvatar(name: String, group: Boolean, size: Int = 46) {
+internal fun ChatAvatar(name: String, group: Boolean, size: Int = 46, avatarPath: String? = null) {
+    val signer = LocalAvatarSigner.current
+    var source by remember(avatarPath) { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    LaunchedEffect(avatarPath, signer) {
+        if (avatarPath != null && signer != null)
+            while (true) {
+                try {
+                    source = signer(avatarPath)
+                } catch (cancel: CancellationException) {
+                    throw cancel
+                } catch (_: Exception) {
+                    source = null
+                }
+                delay(240_000)
+            }
+    }
     val p = LocalChatPalette.current
     Box(
         Modifier.size(size.dp).background(p.soft, CircleShape).border(1.dp, p.line, CircleShape),
@@ -270,6 +308,17 @@ internal fun ChatAvatar(name: String, group: Boolean, size: Int = 46) {
                 color = p.accent,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = (size * .31).sp,
+            )
+        if (source != null)
+            AsyncImage(
+                model =
+                    ImageRequest.Builder(context)
+                        .data(source)
+                        .diskCachePolicy(CachePolicy.DISABLED)
+                        .build(),
+                contentDescription = "Foto de $name",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().clip(CircleShape),
             )
     }
 }

@@ -149,6 +149,24 @@ class ChatSyncTest {
     }
 
     @Test
+    fun pickerAndMediaViewerPreventReadAcknowledgementsBehindTheOverlay() = runBlocking {
+        for (picker in listOf(true, false)) {
+            model.pickerCovered = picker
+            model.mediaCovered = !picker
+            core()
+            response("[]")
+            model.refresh()
+            val requests = List(4) { server.takeRequest(1, TimeUnit.SECONDS)!! }
+            assertFalse(
+                requests.any {
+                    it.path == "/rest/v1/rpc/menchat_seen" ||
+                        it.path == "/rest/v1/rpc/menchat_touch"
+                }
+            )
+        }
+    }
+
+    @Test
     fun lateFailureDoesNotShowErrorInAnotherConversation() {
         server.enqueue(
             MockResponse()

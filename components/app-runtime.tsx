@@ -94,14 +94,14 @@ export function AppRuntime() {
             <p>Tenha o MenChat na tela inicial do seu celular.</p>
             <a
               className="primary-button w-full"
-              href="/downloads/menchat-2.1.0.apk"
-              download="menchat-2.1.0.apk"
+              href="/downloads/menchat-2.2.0.apk"
+              download="menchat-2.2.0.apk"
             >
-              Baixar APK Android · versão 2.1.0 — nativo
+              Baixar APK Android · versão 2.2.0 — nativo
             </a>
             <p className="text-xs text-[var(--muted)]">
-              Android 8 ou posterior. Nova interface Android com conversas, texto
-              e áudio. Abra o arquivo no celular para instalar.
+              Android 8 ou posterior. Câmera, fotos, vídeos, anexos e
+              edição de perfil. Abra o arquivo no celular para atualizar.
             </p>
             {installed ? (
               <p>O MenChat já está aberto como aplicativo neste dispositivo.</p>

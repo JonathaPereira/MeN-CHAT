@@ -6,6 +6,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
@@ -29,7 +30,11 @@ internal data class PublicConfig(val url: String, val key: String) {
     }
 }
 
-internal data class PreparedVoice(val id: String, val path: String)
+internal data class PreparedVoice(
+    val id: String,
+    val path: String,
+    val bucket: String = "menchat-media",
+)
 
 internal class Gateway(
     private val client: OkHttpClient =
@@ -85,7 +90,10 @@ internal class Gateway(
                     if (token != null) header("Authorization", "Bearer $token")
                     method(
                         method,
-                        if (method in listOf("POST", "PUT", "PATCH"))
+                        if (
+                            method in listOf("POST", "PUT", "PATCH") ||
+                                (method == "DELETE" && body != null)
+                        )
                             (body ?: JSONObject()).toString().toRequestBody(jsonType)
                         else null,
                     )
@@ -94,15 +102,23 @@ internal class Gateway(
         return client.newCall(request).execute().use { response ->
             val text = response.body?.string() ?: ""
             if (!response.isSuccessful) {
+                val remote = runCatching { JSONObject(text).optString("message") }.getOrDefault("")
                 val message =
-                    when (response.code) {
-                        401 -> "Sessão expirada ou e-mail/senha incorretos. Entre novamente."
-                        403 -> "Acesso não permitido. Confira sua participação na conversa."
-                        429 -> "Muitas tentativas. Aguarde um pouco."
-                        413 -> "O arquivo ultrapassou o limite permitido."
-                        else ->
-                            "Não foi possível concluir. Confira a conexão, os dados e suas permissões."
-                    }
+                    if (remote.contains("500 MB"))
+                        "O armazenamento do MenChat está cheio. Novos anexos estão bloqueados. Avise o administrador."
+                    else if (remote.contains("100 MB"))
+                        "Você atingiu o limite de 100 MB de envios nas últimas 24 horas."
+                    else if (remote.contains("pendentes"))
+                        "Há anexos pendentes. Conclua ou descarte suas tentativas anteriores."
+                    else
+                        when (response.code) {
+                            401 -> "Sessão expirada ou e-mail/senha incorretos. Entre novamente."
+                            403 -> "Acesso não permitido. Confira sua participação na conversa."
+                            429 -> "Muitas tentativas. Aguarde um pouco."
+                            413 -> "O arquivo ultrapassou o limite permitido."
+                            else ->
+                                "Não foi possível concluir. Confira a conexão, os dados e suas permissões."
+                        }
                 val apiCode = runCatching { JSONObject(text).optString("code") }.getOrNull()
                 throw NativeApiException(response.code, safeApiCode(apiCode), message)
             }
@@ -182,7 +198,8 @@ internal class Gateway(
                 mapOf(
                     "id" to "eq.$id",
                     "account_status" to "eq.active",
-                    "select" to "id,display_name,user_code,status_message",
+                    "select" to
+                        "id,display_name,user_code,status_message,avatar_path,show_code,allow_code_lookup,read_receipts,show_typing",
                 ),
             )
         require(rows.length() == 1 && rows.getJSONObject(0).getString("id") == id) {
@@ -194,6 +211,11 @@ internal class Gateway(
                 it.getString("display_name"),
                 it.getString("user_code"),
                 it.optString("status_message"),
+                it.optional("avatar_path"),
+                it.optBoolean("show_code", true),
+                it.optBoolean("allow_code_lookup", true),
+                it.optBoolean("read_receipts", true),
+                it.optBoolean("show_typing", true),
             )
         }
     }
@@ -223,6 +245,7 @@ internal class Gateway(
                 it.optional("last_body") ?: "Comece a conversar",
                 it.optInt("unread_count"),
                 it.optional("last_at"),
+                it.optional("avatar_path"),
             )
         }
 
@@ -364,62 +387,154 @@ internal class Gateway(
         )
     }
 
-    fun signed(media: Media): String {
+    fun signed(media: Media): String = signedPath("menchat-media", media.path)
+
+    fun avatarUrl(path: String): String = signedPath("menchat-avatars", path)
+
+    private fun signedPath(bucket: String, path: String): String {
         val cfg = configured()
         val result =
             JSONObject(
                 raw(
-                    "/storage/v1/object/sign/menchat-media/${media.path}",
+                    "/storage/v1/object/sign/$bucket/$path",
                     "POST",
                     JSONObject().put("expiresIn", 300),
                     token = token(),
                 )
             )
-        val uri = (result.optional("signedURL") ?: result.getString("signedUrl"))
-        val url = if (uri.startsWith("/")) cfg.url + "/storage/v1" + uri else uri
-        require(url.toHttpUrl().host == cfg.url.toHttpUrl().host && url.toHttpUrl().isHttps)
+        val uri = result.optional("signedURL") ?: result.getString("signedUrl")
+        val url =
+            if (uri.startsWith("/storage/v1/")) cfg.url + uri
+            else if (uri.startsWith("/")) cfg.url + "/storage/v1" + uri else uri
+        val parsed = url.toHttpUrl()
+        val base = cfg.url.toHttpUrl()
+        require(
+            parsed.scheme == base.scheme &&
+                parsed.host == base.host &&
+                parsed.port == base.port &&
+                parsed.username.isEmpty() &&
+                parsed.password.isEmpty()
+        )
         return url
     }
 
-    fun reserveVoice(thread: String, file: File): PreparedVoice {
-        require(file.length() in 1..10_000_000) { "Áudio vazio ou maior que 10 MB." }
+    fun reserveVoice(thread: String, file: File) =
+        reserveFile(thread, LocalAttachment(file, file.name, "audio/mp4", "audio"))
+
+    fun uploadVoice(item: PreparedVoice, file: File) =
+        uploadFile(item, LocalAttachment(file, file.name, "audio/mp4", "audio"))
+
+    fun reserveFile(thread: String?, file: LocalAttachment): PreparedVoice {
+        if (thread == null)
+            require(file.kind == "avatar" && file.mime == "image/webp" && file.bytes in 1..200_000)
+        else NativeMediaPolicy.check(file.name, file.mime, file.bytes)
         val row =
             JSONArray(
                     rpc(
                         "menchat_reserve_upload",
                         JSONObject()
-                            .put("p_thread", thread)
+                            .put("p_thread", thread ?: JSONObject.NULL)
                             .put("p_name", file.name)
-                            .put("p_mime", "audio/mp4")
-                            .put("p_bytes", file.length()),
+                            .put("p_mime", file.mime)
+                            .put("p_bytes", file.bytes),
                     )
                 )
                 .getJSONObject(0)
-        return PreparedVoice(row.getString("id"), row.getString("path"))
+        return PreparedVoice(
+            row.getString("id"),
+            row.getString("path"),
+            if (thread == null) "menchat-avatars" else "menchat-media",
+        )
     }
 
-    fun uploadVoice(item: PreparedVoice, file: File) {
+    fun uploadFile(item: PreparedVoice, file: LocalAttachment) {
         val cfg = configured()
+        require(item.bucket in listOf("menchat-media", "menchat-avatars"))
         val request =
             Request.Builder()
-                .url(cfg.url + "/storage/v1/object/menchat-media/" + item.path)
+                .url(cfg.url + "/storage/v1/object/" + item.bucket + "/" + item.path)
                 .header("apikey", cfg.key)
                 .header("Authorization", "Bearer ${token()}")
                 .header("x-upsert", "false")
-                .post(file.readBytes().toRequestBody("audio/mp4".toMediaType()))
+                .header("cache-control", "0")
+                .post(file.file.asRequestBody(file.mime.toMediaType()))
                 .build()
         client.newCall(request).execute().use {
             if (!it.isSuccessful) {
-                // Storage may return HTTP 400 with statusCode 409 after a lost response.
-                // The final RPC still verifies ownership, size and MIME before publishing.
                 val details = runCatching { JSONObject(it.body?.string() ?: "{}") }.getOrNull()
                 val duplicate =
                     it.code == 409 ||
                         (it.code == 400 &&
                             (details?.optString("statusCode") == "409" ||
                                 details?.optString("error") == "Duplicate"))
-                if (!duplicate) error("Falha ao anexar áudio. Tente novamente.")
+                if (!duplicate)
+                    throw NativeApiException(
+                        it.code,
+                        safeApiCode(details?.optString("code")),
+                        if (it.code == 403) "Sem permissão para enviar este arquivo."
+                        else if (it.code == 402)
+                            "Armazenamento limitado pelo provedor. Avise o administrador."
+                        else "Falha ao anexar o arquivo. Tente novamente.",
+                    )
             }
         }
+    }
+
+    fun discardFile(item: PreparedVoice) {
+        raw(
+            "/storage/v1/object/${item.bucket}",
+            "DELETE",
+            JSONObject().put("prefixes", JSONArray().put(item.path)),
+            token = token(),
+        )
+        rpc("menchat_cancel_upload", JSONObject().put("p_upload", item.id))
+    }
+
+    fun findSent(id: String, thread: String): Message? =
+        table(
+                "menchat_messages",
+                mapOf(
+                    "id" to "eq.$id",
+                    "thread_id" to "eq.$thread",
+                    "select" to "*",
+                    "limit" to "1",
+                ),
+            )
+            .objects()
+            .firstOrNull()
+            ?.message()
+
+    fun retireAvatar(actor: String, path: String) {
+        val row =
+            table(
+                    "menchat_uploads",
+                    mapOf(
+                        "owner_id" to "eq.$actor",
+                        "path" to "eq.$path",
+                        "kind" to "eq.avatar",
+                        "select" to "id,path",
+                    ),
+                )
+                .objects()
+                .firstOrNull() ?: return
+        discardFile(PreparedVoice(row.getString("id"), row.getString("path"), "menchat-avatars"))
+    }
+
+    fun saveProfile(draft: ProfileDraft, avatar: String?) {
+        require(draft.name.trim().length in 1..50 && draft.status.length <= 140) {
+            "Nome: até 50 caracteres. Status: até 140."
+        }
+        rpc(
+            "menchat_save_profile",
+            JSONObject()
+                .put("p_name", draft.name.trim())
+                .put("p_status", draft.status)
+                .put("p_show_code", draft.showCode)
+                .put("p_lookup", draft.lookup)
+                .put("p_read", draft.readReceipts)
+                .put("p_typing", draft.showTyping)
+                .put("p_avatar", avatar ?: JSONObject.NULL)
+                .put("p_remove", draft.removePhoto),
+        )
     }
 }

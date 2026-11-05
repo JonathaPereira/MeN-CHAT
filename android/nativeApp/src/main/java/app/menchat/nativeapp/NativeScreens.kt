@@ -34,11 +34,18 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun MenChatNative(model: MainModel) {
+    val selections = rememberSelections(model)
     val context = LocalContext.current
+    val signer: suspend (String) -> String =
+        remember(model) {
+            { path -> withContext(Dispatchers.IO) { model.gateway.avatarUrl(path) } }
+        }
     val version = remember {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
     }
@@ -52,6 +59,8 @@ internal fun MenChatNative(model: MainModel) {
     var settings by remember { mutableStateOf(false) }
     var newConversation by remember { mutableStateOf(false) }
     var createGroup by remember { mutableStateOf(false) }
+    var selectionMenu by remember { mutableStateOf<String?>(null) }
+    var draftPreview by remember { mutableStateOf(false) }
     var actionMessage by remember { mutableStateOf<Message?>(null) }
     val themeChange = {
         dark = !dark
@@ -70,7 +79,9 @@ internal fun MenChatNative(model: MainModel) {
                 newConversation ||
                 createGroup ||
                 actionMessage != null ||
-                state.error != null
+                state.error != null ||
+                state.profile != null ||
+                selectionMenu != null
     }
     LaunchedEffect(owner, state.account?.id) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -80,101 +91,194 @@ internal fun MenChatNative(model: MainModel) {
             }
         }
     }
-    LaunchedEffect(state.selected?.id) { actionMessage = null }
+    LaunchedEffect(state.selected?.id) {
+        actionMessage = null
+        selectionMenu = null
+        draftPreview = false
+    }
     BackHandler(
         state.selected != null &&
             !state.busy &&
             actionMessage == null &&
             !settings &&
             !newConversation &&
-            !createGroup
+            !createGroup &&
+            state.profile == null &&
+            !draftPreview &&
+            selectionMenu == null
     ) {
         model.select(null)
     }
-    MenChatTheme(dark) {
-        val p = LocalChatPalette.current
-        Surface(Modifier.fillMaxSize(), color = p.canvas) {
-            when {
-                state.restoring ->
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(24.dp),
+    CompositionLocalProvider(LocalAvatarSigner provides signer) {
+        MenChatTheme(dark) {
+            val p = LocalChatPalette.current
+            Surface(Modifier.fillMaxSize(), color = p.canvas) {
+                when {
+                    state.restoring ->
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(24.dp),
+                            ) {
+                                BrandMark()
+                                CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.dp)
+                            }
+                        }
+                    state.account == null -> NativeLogin(state.busy, model::login)
+                    else ->
+                        AdaptiveChatWorkspace(
+                            state,
+                            dark,
+                            model::select,
+                            { newConversation = true },
+                            { createGroup = true },
+                            { settings = true },
+                            themeChange,
                         ) {
-                            BrandMark()
-                            CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.dp)
+                            key(state.selected?.id) {
+                                ConversationPane(
+                                    state,
+                                    { model.select(null) },
+                                    { settings = true },
+                                    model::reply,
+                                    model::delete,
+                                    model::history,
+                                    { model.atBottom = it },
+                                    actionMessage,
+                                    { actionMessage = it },
+                                    composer = {
+                                        NativeComposer(
+                                            model,
+                                            state,
+                                            { selectionMenu = "attach" },
+                                            { selectionMenu = "camera" },
+                                            { draftPreview = true },
+                                        )
+                                    },
+                                    media = { NativeMedia(model, it) },
+                                )
+                            }
                         }
-                    }
-                state.account == null -> NativeLogin(state.busy, model::login)
-                else ->
-                    AdaptiveChatWorkspace(
-                        state,
-                        dark,
-                        model::select,
-                        { newConversation = true },
-                        { createGroup = true },
-                        { settings = true },
-                        themeChange,
-                    ) {
-                        key(state.selected?.id) {
-                            ConversationPane(
-                                state,
-                                { model.select(null) },
-                                { settings = true },
-                                model::reply,
-                                model::delete,
-                                model::history,
-                                { model.atBottom = it },
-                                actionMessage,
-                                { actionMessage = it },
-                                composer = { NativeComposer(model, state) },
-                                media = { NativeMedia(model, it) },
-                            )
-                        }
-                    }
-            }
-            if (state.error != null)
-                AlertDialog(
-                    onDismissRequest = model::clearError,
-                    icon = { ChatIcon(Glyph.Info, tint = p.accent) },
-                    title = { Text("Não foi possível concluir") },
-                    text = { Text(state.error!!) },
-                    confirmButton = { TextButton(onClick = model::clearError) { Text("Entendi") } },
-                )
-            if (newConversation)
-                TextPrompt(
-                    "Nova conversa",
-                    "Código do contato",
-                    6,
-                    true,
-                    { newConversation = false },
-                ) {
-                    newConversation = false
-                    model.open(it)
                 }
-            if (createGroup)
-                TextPrompt("Criar grupo", "Nome do grupo", 60, false, { createGroup = false }) {
-                    createGroup = false
-                    model.group(it)
-                }
-            if (settings && state.account != null)
-                ModalBottomSheet(
-                    onDismissRequest = { settings = false },
-                    containerColor = p.panel,
-                    dragHandle = { BottomSheetDefaults.DragHandle(color = p.line) },
-                ) {
-                    AccountPanel(
+                if (state.profile != null && state.account != null)
+                    ProfileEditor(
                         state.account!!,
-                        version,
-                        dark,
-                        themeChange,
-                        {
-                            settings = false
-                            model.logout()
+                        state.profile!!,
+                        state.busy,
+                        model::editProfile,
+                        { selections.gallery(true) },
+                        { selections.camera(false, true) },
+                        model::removeProfilePhoto,
+                        model::saveProfile,
+                        model::closeProfile,
+                    )
+                if (draftPreview && state.attachment != null)
+                    LocalMediaPreview(model, state.attachment!!, { draftPreview = false })
+                if (selectionMenu != null)
+                    ModalBottomSheet(
+                        onDismissRequest = { selectionMenu = null },
+                        containerColor = p.panel,
+                    ) {
+                        val camera = selectionMenu == "camera"
+                        Text(
+                            if (camera) "Câmera" else "Anexar",
+                            Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                        if (camera) {
+                            MediaChoice(Glyph.Camera, "Tirar foto") {
+                                selectionMenu = null
+                                selections.camera(false, false)
+                            }
+                            MediaChoice(Glyph.Video, "Gravar vídeo · até 2 minutos") {
+                                selectionMenu = null
+                                selections.camera(true, false)
+                            }
+                        } else {
+                            MediaChoice(Glyph.Photo, "Fotos e vídeos") {
+                                selectionMenu = null
+                                selections.gallery(false)
+                            }
+                            MediaChoice(Glyph.File, "Documento") {
+                                selectionMenu = null
+                                selections.document(false)
+                            }
+                            MediaChoice(Glyph.Mic, "Arquivo de áudio") {
+                                selectionMenu = null
+                                selections.document(true)
+                            }
+                        }
+                        Text(
+                            "Fotos 5 MB · vídeos 25 MB · áudio e documentos 10 MB",
+                            Modifier.padding(24.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = p.muted,
+                        )
+                    }
+                if (state.error != null)
+                    AlertDialog(
+                        onDismissRequest = model::clearError,
+                        icon = { ChatIcon(Glyph.Info, tint = p.accent) },
+                        title = { Text("Não foi possível concluir") },
+                        text = { Text(state.error!!) },
+                        confirmButton = {
+                            TextButton(onClick = model::clearError) { Text("Entendi") }
                         },
                     )
-                }
+                if (newConversation)
+                    TextPrompt(
+                        "Nova conversa",
+                        "Código do contato",
+                        6,
+                        true,
+                        { newConversation = false },
+                    ) {
+                        newConversation = false
+                        model.open(it)
+                    }
+                if (createGroup)
+                    TextPrompt("Criar grupo", "Nome do grupo", 60, false, { createGroup = false }) {
+                        createGroup = false
+                        model.group(it)
+                    }
+                if (settings && state.account != null)
+                    ModalBottomSheet(
+                        onDismissRequest = { settings = false },
+                        containerColor = p.panel,
+                        dragHandle = { BottomSheetDefaults.DragHandle(color = p.line) },
+                    ) {
+                        AccountPanel(
+                            state.account!!,
+                            version,
+                            dark,
+                            themeChange,
+                            {
+                                settings = false
+                                model.beginProfile()
+                            },
+                            {
+                                settings = false
+                                model.logout()
+                            },
+                        )
+                    }
+            }
         }
+    }
+}
+
+@Composable
+private fun MediaChoice(glyph: Glyph, label: String, click: () -> Unit) {
+    TextButton(
+        onClick = click,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp),
+    ) {
+        ChatIcon(glyph, tint = LocalChatPalette.current.accent)
+        Text(
+            label,
+            Modifier.weight(1f).padding(horizontal = 16.dp),
+            color = LocalChatPalette.current.ink,
+        )
     }
 }
 
@@ -318,6 +422,7 @@ private fun AccountPanel(
     version: String,
     dark: Boolean,
     theme: () -> Unit,
+    edit: () -> Unit,
     logout: () -> Unit,
 ) {
     val p = LocalChatPalette.current
@@ -333,7 +438,7 @@ private fun AccountPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            ChatAvatar(account.name, false, 56)
+            ChatAvatar(account.name, false, 56, account.avatarPath)
             Column(Modifier.weight(1f)) {
                 Text(account.name, style = MaterialTheme.typography.titleMedium)
                 if (account.status.isNotBlank())
@@ -359,6 +464,13 @@ private fun AccountPanel(
                     )
                 }
             }
+        }
+        OutlinedButton(
+            onClick = edit,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            shape = RoundedCornerShape(14.dp),
+        ) {
+            Text("Editar perfil")
         }
         HorizontalDivider(color = p.line)
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -401,7 +513,13 @@ private fun AccountPanel(
 }
 
 @Composable
-private fun NativeComposer(model: MainModel, state: NativeState) {
+private fun NativeComposer(
+    model: MainModel,
+    state: NativeState,
+    attach: () -> Unit,
+    camera: () -> Unit,
+    preview: () -> Unit,
+) {
     val context = LocalContext.current
     var permissionThread by remember { mutableStateOf<String?>(null) }
     val permission =
@@ -435,5 +553,9 @@ private fun NativeComposer(model: MainModel, state: NativeState) {
         discardVoice = model::discardVoice,
         send = model::send,
         sendVoice = model::finishAndSend,
+        attach = attach,
+        camera = camera,
+        discardMedia = model::discardAttachment,
+        preview = preview,
     )
 }

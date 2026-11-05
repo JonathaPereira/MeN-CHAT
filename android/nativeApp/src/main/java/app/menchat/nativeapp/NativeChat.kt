@@ -60,7 +60,7 @@ internal fun ConversationPane(
                 enabled = !state.busy,
                 onClick = onBack,
             )
-            ChatAvatar(thread.name, thread.group, 40)
+            ChatAvatar(thread.name, thread.group, 40, thread.avatarPath)
             Column(
                 Modifier.weight(1f).padding(horizontal = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -277,7 +277,7 @@ private fun MessageBubble(
                 Box(Modifier.align(Alignment.TopEnd)) {
                     IconButton(
                         onClick = open,
-                        enabled = !state.busy,
+                        enabled = !state.busy && !state.retrySend,
                         modifier = Modifier.size(40.dp),
                     ) {
                         ChatIcon(Glyph.Down, "Opções da mensagem", Modifier.size(17.dp))
@@ -322,6 +322,10 @@ internal fun ComposerContent(
     discardVoice: () -> Unit,
     send: () -> Unit,
     sendVoice: () -> Unit,
+    attach: (() -> Unit)? = null,
+    camera: (() -> Unit)? = null,
+    discardMedia: () -> Unit = discardVoice,
+    preview: () -> Unit = {},
 ) {
     val p = LocalChatPalette.current
     val focus = remember { FocusRequester() }
@@ -361,7 +365,12 @@ internal fun ComposerContent(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                ChatIconButton(Glyph.Close, "Cancelar resposta", onClick = onReplyCancel)
+                ChatIconButton(
+                    Glyph.Close,
+                    "Cancelar resposta",
+                    enabled = !state.busy && !state.retrySend,
+                    onClick = onReplyCancel,
+                )
             }
         if (state.recording)
             Row(
@@ -386,6 +395,68 @@ internal fun ComposerContent(
                 SendControl("Enviar áudio", true, state.busy, sendVoice)
             }
         else {
+            if (state.retrySend)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Envio sem confirmação. Tente novamente para conferir a entrega. Descartar não apaga mensagens já entregues.",
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = p.muted,
+                    )
+                    ChatIconButton(
+                        Glyph.Close,
+                        "Descartar tentativa de envio",
+                        enabled = !state.busy,
+                        onClick = discardMedia,
+                    )
+                }
+            val file = state.attachment
+            if (file != null)
+                Surface(
+                    onClick = preview,
+                    color = p.soft,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 12.dp),
+                    ) {
+                        ChatIcon(
+                            when (file.kind) {
+                                "image" -> Glyph.Photo
+                                "video" -> Glyph.Video
+                                "audio" -> Glyph.Mic
+                                else -> Glyph.File
+                            },
+                            tint = p.accent,
+                        )
+                        Column(Modifier.weight(1f).padding(10.dp)) {
+                            Text(
+                                when (file.kind) {
+                                    "image" -> "Foto pronta"
+                                    "video" -> "Vídeo pronto"
+                                    "audio" -> "Áudio pronto"
+                                    else -> file.name
+                                },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                "${(file.bytes / 1000).coerceAtLeast(1)} KB · toque para visualizar",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = p.muted,
+                            )
+                        }
+                        ChatIconButton(
+                            Glyph.Close,
+                            "Remover anexo",
+                            enabled = !state.busy && !state.retrySend,
+                            onClick = discardMedia,
+                        )
+                    }
+                }
             if (state.voice != null)
                 Row(
                     Modifier.fillMaxWidth().padding(bottom = 6.dp),
@@ -401,17 +472,15 @@ internal fun ComposerContent(
                     ChatIconButton(
                         Glyph.Close,
                         "Remover áudio",
-                        enabled = !state.busy,
+                        enabled = !state.busy && !state.retrySend,
                         onClick = discardVoice,
                     )
                 }
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
+            val enabled = !state.busy && !state.retrySend && state.selected?.canSend == true
+            val canPick = enabled && state.voice == null
+            val input: @Composable (Modifier) -> Unit = { modifier ->
                 Surface(
-                    Modifier.weight(1f),
+                    modifier,
                     color = p.canvas,
                     shape = RoundedCornerShape(24.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, p.line),
@@ -419,7 +488,7 @@ internal fun ComposerContent(
                     BasicTextField(
                         state.text,
                         onText,
-                        enabled = !state.busy && state.selected?.canSend == true,
+                        enabled = enabled,
                         maxLines = 4,
                         modifier =
                             Modifier.fillMaxWidth()
@@ -442,20 +511,62 @@ internal fun ComposerContent(
                         },
                     )
                 }
+            }
+            val picks: @Composable () -> Unit = {
+                if (attach != null)
+                    ChatIconButton(
+                        Glyph.Clip,
+                        "Anexar arquivo",
+                        enabled = canPick,
+                        onClick = attach,
+                    )
+                if (camera != null)
+                    ChatIconButton(
+                        Glyph.Camera,
+                        "Abrir câmera",
+                        enabled = canPick,
+                        onClick = camera,
+                    )
+            }
+            val sends: @Composable () -> Unit = {
                 if (state.voice == null)
                     ChatIconButton(
                         Glyph.Mic,
                         "Gravar áudio",
-                        enabled = !state.busy && state.selected?.canSend == true,
+                        enabled = enabled && file == null,
                         onClick = record,
                     )
                 SendControl(
-                    "Enviar mensagem",
+                    if (state.retrySend) "Tentar enviar novamente" else "Enviar mensagem",
                     state.selected?.canSend == true &&
-                        (state.text.isNotBlank() || state.voice != null),
+                        (state.text.isNotBlank() || state.voice != null || file != null),
                     state.busy,
                     send,
                 )
+            }
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                if (maxWidth < 480.dp && attach != null)
+                    Column {
+                        input(Modifier.fillMaxWidth())
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            picks()
+                            Spacer(Modifier.weight(1f))
+                            sends()
+                        }
+                    }
+                else
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        picks()
+                        input(Modifier.weight(1f))
+                        sends()
+                    }
             }
         }
     }

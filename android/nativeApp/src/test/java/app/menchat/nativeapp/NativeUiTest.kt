@@ -174,6 +174,8 @@ class NativeUiTest {
                                 {},
                                 { update(value.copy(text = "")) },
                                 { update(value.copy(recording = false)) },
+                                attach = {},
+                                camera = {},
                             )
                         },
                         media = { id ->
@@ -222,7 +224,8 @@ class NativeUiTest {
         ui.onNodeWithContentDescription("Cancelar resposta").performClick()
         val input = ui.onNodeWithContentDescription("Mensagem").fetchSemanticsNode().boundsInRoot
         val mic = ui.onNodeWithContentDescription("Gravar áudio").fetchSemanticsNode().boundsInRoot
-        assertTrue(mic.left >= input.right)
+        assertTrue(mic.right > input.right - 70f)
+        assertTrue(mic.top >= input.bottom)
         ui.onNodeWithContentDescription("Gravar áudio").performClick()
         ui.onNodeWithText("Gravando áudio").assertIsDisplayed()
         ui.onNodeWithContentDescription("Enviar áudio").performClick()
