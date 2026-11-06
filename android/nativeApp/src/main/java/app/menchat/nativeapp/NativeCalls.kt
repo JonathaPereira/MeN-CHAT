@@ -21,7 +21,21 @@ internal data class NativeCallState(
     val revision: Long = 0,
     val error: String? = null,
     val expanded: Boolean = true,
+    val maximized: String? = null,
 )
+
+private val transientSyncErrors =
+    setOf(
+        "Conexão instável. Tentando sincronizar a chamada…",
+        "Não foi possível renovar a conexão. Tentando novamente.",
+    )
+
+private val transientRtcErrors =
+    setOf(
+        "Tentando reconectar a chamada…",
+        "Não foi possível negociar a chamada. Tente reconectar.",
+        "Sinalização instável. Tentando reconectar…",
+    )
 
 internal class NativeCalls(
     private val context: Context,
@@ -73,6 +87,20 @@ internal class NativeCalls(
         mutable.value = value(mutable.value)
     }
 
+    private fun normalizeMaximized(
+        target: String?,
+        snapshot: CallSnapshot?,
+        localVideo: Boolean,
+    ): String? {
+        if (target == null || snapshot == null || !snapshot.header.video) return null
+        if (target == "self") return if (localVideo) "self" else null
+        val member =
+            snapshot.members.firstOrNull {
+                it.id == target && it.id != actor && it.state == "joined" && it.video
+            }
+        return member?.id
+    }
+
     fun bind(id: String, ready: Boolean) {
         if (actor != null && actor != id) end()
         actor = id
@@ -94,6 +122,13 @@ internal class NativeCalls(
         change { it.copy(expanded = value) }
     }
 
+    fun maximize(target: String?) {
+        change { current ->
+            val desired = if (current.maximized == target) null else target
+            current.copy(maximized = normalizeMaximized(desired, current.active, current.video))
+        }
+    }
+
     fun clearError() {
         change { it.copy(error = null) }
     }
@@ -110,7 +145,7 @@ internal class NativeCalls(
                     rows.firstOrNull { it.mine == "joined" }
                         ?: rows.firstOrNull { it.mine == "invited" }
                 if (incoming == null && lastIncoming != null) {
-                    NativeNotifications(context).stopVibration()
+                    NativeNotifications(context).stopVibration(lastIncoming)
                     lastIncoming = null
                 }
                 change { it.copy(incoming = incoming) }
@@ -130,13 +165,24 @@ internal class NativeCalls(
                     }
                 if (generation != epoch || callId != id) return
                 lastContact = SystemClock.elapsedRealtime()
-                change { it.copy(active = snapshot) }
+                change { current ->
+                    current.copy(
+                        active = snapshot,
+                        maximized = normalizeMaximized(current.maximized, snapshot, current.video),
+                        error =
+                            if (current.error in transientSyncErrors) null else current.error,
+                    )
+                }
                 engine?.reconcile(snapshot.members)
                 val rows = withContext(Dispatchers.IO) { transport.signals(id, cursor) }
                 for (signal in rows) {
                     if (generation != epoch || callId != id) return
-                    engine?.receive(signal)
-                    cursor = signal.seq
+                    cursor = maxOf(cursor, signal.seq)
+                    try {
+                        engine?.receive(signal)
+                    } catch (cancel: CancellationException) {
+                        throw cancel
+                    } catch (_: Exception) {}
                 }
                 if (SystemClock.elapsedRealtime() > nextIce) {
                     nextIce = SystemClock.elapsedRealtime() + 30_000
@@ -172,6 +218,7 @@ internal class NativeCalls(
                             active = null,
                             incoming = null,
                             busy = false,
+                            maximized = null,
                             error = "A chamada terminou ou seu acesso foi encerrado.",
                         )
                     }
@@ -203,10 +250,10 @@ internal class NativeCalls(
             }
             return
         }
-        NativeNotifications(context).stopVibration()
+        NativeNotifications(context).stopVibration(incoming ?: lastIncoming)
         val generation = ++epoch
         val id = incoming ?: UUID.randomUUID().toString()
-        change { it.copy(busy = true, error = null, expanded = true) }
+        change { it.copy(busy = true, error = null, expanded = true, maximized = null) }
         pending = scope.launch {
             var acquired: CallMedia? = null
             try {
@@ -262,7 +309,8 @@ internal class NativeCalls(
                         busy = false,
                         mic = true,
                         video = video,
-                        speaker = video,
+                        speaker = engine?.speakerOn ?: video,
+                        maximized = null,
                     )
                 }
                 engine?.reconcile(snapshot.members)
@@ -280,6 +328,7 @@ internal class NativeCalls(
                         it.copy(
                             busy = false,
                             active = null,
+                            maximized = null,
                             error =
                                 "Não foi possível iniciar. Confira permissões e conexão; a chamada pode estar cheia, encerrada ou o contato ocupado.",
                         )
@@ -298,13 +347,18 @@ internal class NativeCalls(
 
     private fun rtcUpdated() {
         val rtc = engine ?: return
-        change {
-            it.copy(
+        val connectedPeers = rtc.connected()
+        change { current ->
+            val clearTransient =
+                connectedPeers.isNotEmpty() && current.error in transientRtcErrors
+            current.copy(
                 mic = rtc.micOn,
                 video = rtc.cameraOn,
                 speaker = rtc.speakerOn,
-                connected = rtc.connected(),
-                revision = it.revision + 1,
+                connected = connectedPeers,
+                maximized = normalizeMaximized(current.maximized, current.active, rtc.cameraOn),
+                error = if (clearTransient) null else current.error,
+                revision = current.revision + 1,
             )
         }
     }
@@ -334,8 +388,9 @@ internal class NativeCalls(
     }
 
     fun decline() {
-        NativeNotifications(context).stopVibration()
-        val incoming = state.value.incoming ?: return
+        val incoming = state.value.incoming
+        NativeNotifications(context).stopVibration(incoming?.id ?: lastIncoming)
+        incoming ?: return
         change { it.copy(incoming = null) }
         scope.launch {
             withContext(Dispatchers.IO) { runCatching { transport.leave(incoming.id) } }
@@ -343,8 +398,8 @@ internal class NativeCalls(
     }
 
     fun end() {
-        NativeNotifications(context).stopVibration()
         val id = callId ?: state.value.incoming?.id
+        NativeNotifications(context).stopVibration(id ?: lastIncoming)
         epoch++
         pending?.cancel()
         pending = null
@@ -360,7 +415,7 @@ internal class NativeCalls(
         engine = null
         life.stop()
         cursor = 0
-        change { it.copy(connected = emptySet(), revision = it.revision + 1) }
+        change { it.copy(connected = emptySet(), maximized = null, revision = it.revision + 1) }
     }
 
     suspend fun logout() {

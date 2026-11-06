@@ -31,6 +31,7 @@ internal class NativeNotifications(private val context: Context) {
     companion object {
         @Volatile var visibleThread: String? = null
         @Volatile var appForeground = false
+        @Volatile private var activeRingtone: android.media.Ringtone? = null
         val uuid =
             Regex("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}")
     }
@@ -115,10 +116,12 @@ internal class NativeNotifications(private val context: Context) {
         )
             return
         runCatching {
-            RingtoneManager.getRingtone(context, soundUri()).apply {
-                audioAttributes =
+            activeRingtone?.stop()
+            RingtoneManager.getRingtone(context, soundUri())?.also { ringtone ->
+                ringtone.audioAttributes =
                     AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build()
-                play()
+                activeRingtone = ringtone
+                ringtone.play()
             }
         }
     }
@@ -162,7 +165,15 @@ internal class NativeNotifications(private val context: Context) {
     }
 
     @Suppress("DEPRECATION")
-    fun stopVibration() {
+    fun stopVibration(callId: String? = null) {
+        runCatching {
+            activeRingtone?.stop()
+            activeRingtone = null
+        }
+        if (callId != null) {
+            val key = "call:$callId"
+            runCatching { manager.cancel(key, key.hashCode()) }
+        }
         runCatching {
             val vibrator =
                 if (Build.VERSION.SDK_INT >= 31)

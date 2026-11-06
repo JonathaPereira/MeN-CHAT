@@ -108,27 +108,167 @@ internal fun NativeCallScreen(
             },
             dismissButton = { TextButton(onClick = calls::decline) { Text("Recusar") } },
         )
-    if (active != null && state.expanded)
-        CollectionDialog(
-            if (active.header.video) "Chamada de vídeo" else "Chamada de voz",
-            { calls.expand(false) },
-        ) {
-            Text(
-                if (active.header.state == "ringing") "Chamando…" else "Em chamada · até 4 pessoas",
-                style = MaterialTheme.typography.bodySmall,
-                color = LocalChatPalette.current.muted,
-            )
-            val engine = calls.engine
-            if (active.header.video && state.video && engine?.localVideo != null)
-                NativeCallVideo(engine, engine.localVideo!!, true)
-            else
+    if (active != null && state.expanded) {
+        val engine = calls.engine
+        val others = active.members.filter { it.id != actor }
+        val maximizedMember =
+            if (state.maximized != null && state.maximized != "self")
+                others.firstOrNull {
+                    it.id == state.maximized && it.state == "joined" && it.video
+                }
+            else null
+        val isSelfMaximized =
+            state.maximized == "self" && active.header.video && state.video
+        if (isSelfMaximized || maximizedMember != null) {
+            val title =
+                if (isSelfMaximized) "Você · tela maximizada"
+                else "${maximizedMember!!.name} · tela maximizada"
+            val track =
+                if (isSelfMaximized) engine?.localVideo
+                else engine?.remoteVideo(maximizedMember!!.id)
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { calls.maximize(null) },
+                properties =
+                    androidx.compose.ui.window.DialogProperties(
+                        usePlatformDefaultWidth = false,
+                        decorFitsSystemWindows = false,
+                    ),
+            ) {
+                Surface(
+                    Modifier.fillMaxSize(),
+                    color = LocalChatPalette.current.canvas,
+                ) {
+                    Column(
+                        Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                ChatIconButton(
+                                    Glyph.Back,
+                                    "Restaurar tela",
+                                    onClick = { calls.maximize(null) },
+                                )
+                                Text(
+                                    title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                            }
+                            OutlinedButton(onClick = { calls.maximize(null) }) {
+                                Text("Restaurar tela")
+                            }
+                        }
+                        Surface(
+                            Modifier.weight(1f).fillMaxWidth(),
+                            color = LocalChatPalette.current.panel,
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+                        ) {
+                            Box(
+                                Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (engine != null && track != null)
+                                    NativeCallVideo(
+                                        engine,
+                                        track,
+                                        isSelfMaximized,
+                                        fullScreen = true,
+                                    )
+                                else if (isSelfMaximized)
+                                    Text(
+                                        "Você${if(state.mic)"" else " · microfone desligado"}",
+                                        style = MaterialTheme.typography.titleLarge,
+                                    )
+                                else if (maximizedMember != null)
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        ChatAvatar(
+                                            maximizedMember.name,
+                                            false,
+                                            88,
+                                            maximizedMember.avatar,
+                                        )
+                                        Text(
+                                            maximizedMember.name,
+                                            style = MaterialTheme.typography.titleLarge,
+                                        )
+                                    }
+                            }
+                        }
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (!isSelfMaximized && active.header.video && state.video) {
+                                OutlinedButton(onClick = { calls.maximize("self") }) {
+                                    Text("Maximizar minha tela")
+                                }
+                            }
+                            others
+                                .filter {
+                                    it.state == "joined" &&
+                                        it.video &&
+                                        it.id != maximizedMember?.id
+                                }
+                                .forEach { person ->
+                                    OutlinedButton(onClick = { calls.maximize(person.id) }) {
+                                        Text("Maximizar tela de ${person.name}")
+                                    }
+                                }
+                        }
+                        NativeCallControlsRow(calls, state, active.header.video)
+                        Button(onClick = calls::end, modifier = Modifier.fillMaxWidth()) {
+                            Text("Encerrar chamada")
+                        }
+                        state.error?.let {
+                            Text(
+                                it,
+                                color = LocalChatPalette.current.muted,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            CollectionDialog(
+                if (active.header.video) "Chamada de vídeo" else "Chamada de voz",
+                { calls.expand(false) },
+            ) {
                 Text(
-                    "Você${if(state.mic)"" else " · microfone desligado"}",
-                    style = MaterialTheme.typography.titleMedium,
+                    if (active.header.state == "ringing") "Chamando…"
+                    else "Em chamada · até 4 pessoas",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalChatPalette.current.muted,
                 )
-            active.members
-                .filter { it.id != actor }
-                .forEach { person ->
+                Surface(
+                    color = LocalChatPalette.current.panel,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (active.header.video && state.video && engine?.localVideo != null)
+                            NativeCallVideo(engine, engine.localVideo!!, true)
+                        Text(
+                            "Você${if(state.mic)"" else " · microfone desligado"}",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        if (active.header.video && state.video) {
+                            OutlinedButton(onClick = { calls.maximize("self") }) {
+                                Text("Maximizar minha tela")
+                            }
+                        }
+                    }
+                }
+                others.forEach { person ->
                     val track = engine?.remoteVideo(person.id)
                     Surface(
                         color = LocalChatPalette.current.panel,
@@ -138,7 +278,8 @@ internal fun NativeCallScreen(
                             Modifier.fillMaxWidth().padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            if (person.video && track != null) NativeCallVideo(engine, track, false)
+                            if (person.video && track != null)
+                                NativeCallVideo(engine, track, false)
                             else ChatAvatar(person.name, false, 64, person.avatar)
                             Text(person.name, style = MaterialTheme.typography.titleMedium)
                             Text(
@@ -152,36 +293,32 @@ internal fun NativeCallScreen(
                                 color = LocalChatPalette.current.muted,
                                 style = MaterialTheme.typography.bodySmall,
                             )
+                            if (
+                                active.header.video &&
+                                    person.video &&
+                                    person.state == "joined"
+                            ) {
+                                OutlinedButton(onClick = { calls.maximize(person.id) }) {
+                                    Text("Maximizar tela de ${person.name}")
+                                }
+                            }
                         }
                     }
                 }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = calls::microphone) {
-                    Text(if (state.mic) "Silenciar" else "Ativar microfone")
+                NativeCallControlsRow(calls, state, active.header.video)
+                Button(onClick = calls::end, modifier = Modifier.fillMaxWidth()) {
+                    Text("Encerrar chamada")
                 }
-                OutlinedButton(onClick = calls::speaker) {
-                    Text(if (state.speaker) "Usar fone" else "Viva-voz")
+                state.error?.let {
+                    Text(
+                        it,
+                        color = LocalChatPalette.current.muted,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
-                if (active.header.video) {
-                    OutlinedButton(onClick = calls::camera) {
-                        Text(if (state.video) "Desligar câmera" else "Ligar câmera")
-                    }
-                    OutlinedButton(onClick = calls::switchCamera, enabled = state.video) {
-                        Text("Alternar câmera")
-                    }
-                }
-            }
-            Button(onClick = calls::end, modifier = Modifier.fillMaxWidth()) {
-                Text("Encerrar chamada")
-            }
-            state.error?.let {
-                Text(
-                    it,
-                    color = LocalChatPalette.current.muted,
-                    style = MaterialTheme.typography.bodySmall,
-                )
             }
         }
+    }
     if (state.error != null && active == null && !state.busy)
         AlertDialog(
             onDismissRequest = calls::clearError,
@@ -192,12 +329,43 @@ internal fun NativeCallScreen(
 }
 
 @Composable
-private fun NativeCallVideo(engine: CallMedia, track: VideoTrack, mirror: Boolean) {
+private fun NativeCallControlsRow(
+    calls: NativeCalls,
+    state: NativeCallState,
+    videoCall: Boolean,
+) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = calls::microphone) {
+            Text(if (state.mic) "Silenciar" else "Ativar microfone")
+        }
+        OutlinedButton(onClick = calls::speaker) {
+            Text(if (state.speaker) "Usar fone" else "Viva-voz")
+        }
+        if (videoCall) {
+            OutlinedButton(onClick = calls::camera) {
+                Text(if (state.video) "Desligar câmera" else "Ligar câmera")
+            }
+            OutlinedButton(onClick = calls::switchCamera, enabled = state.video) {
+                Text("Alternar câmera")
+            }
+        }
+    }
+}
+
+@Composable
+private fun NativeCallVideo(
+    engine: CallMedia,
+    track: VideoTrack,
+    mirror: Boolean,
+    fullScreen: Boolean = false,
+) {
     val context = LocalContext.current
     val renderer = remember(engine, track) { engine.renderer(context, track, mirror) }
     DisposableEffect(renderer) { onDispose { engine.releaseRenderer(renderer) } }
     AndroidView(
         factory = { renderer.view },
-        modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f),
+        modifier =
+            if (fullScreen) Modifier.fillMaxSize()
+            else Modifier.fillMaxWidth().aspectRatio(4f / 3f),
     )
 }

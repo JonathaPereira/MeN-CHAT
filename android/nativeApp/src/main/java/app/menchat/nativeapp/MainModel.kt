@@ -81,6 +81,7 @@ internal class MainModel(application: Application, val gateway: Gateway) :
     val state = mutable.asStateFlow()
     private var generation = 0L
     private var polling = false
+    private var refreshPending = false
     private var seenSeq = -1L
     private var pendingId = UUID.randomUUID().toString()
     private var upload: PreparedVoice? = null
@@ -283,8 +284,23 @@ internal class MainModel(application: Application, val gateway: Gateway) :
     }
 
     suspend fun refresh() {
-        if (polling || state.value.account == null) return
+        if (state.value.account == null) return
+        if (polling) {
+            refreshPending = true
+            return
+        }
         polling = true
+        try {
+            do {
+                refreshPending = false
+                refreshOnce()
+            } while (refreshPending && state.value.account != null)
+        } finally {
+            polling = false
+        }
+    }
+
+    private suspend fun refreshOnce() {
         val epoch = generation
         val actor = state.value.account?.id
         val selectedId = state.value.selected?.id
@@ -424,8 +440,6 @@ internal class MainModel(application: Application, val gateway: Gateway) :
             }
             warnings += syncIssue(stage, error)
             change { it.copy(notice = warnings.joinToString("\n")) }
-        } finally {
-            polling = false
         }
     }
 

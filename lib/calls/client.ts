@@ -174,7 +174,15 @@ export class CallClient {
           if (this.closed || epoch !== this.generation || this.callId !== id)
             return;
           this.lastContact = Date.now();
-          this.change({ active: value });
+          this.change({
+            active: value,
+            ...(this.view.error ===
+              "Conexão instável. Tentando sincronizar a chamada…" ||
+            this.view.error ===
+              "Não foi possível renovar a conexão. Tentando novamente."
+              ? { error: "" }
+              : {}),
+          });
           this.reconcile(value);
           const signals = await this.rpc<Signal[]>("menchat_call_signals", {
             p_call: id,
@@ -183,8 +191,12 @@ export class CallClient {
           });
           for (const signal of signals) {
             if (this.closed || epoch !== this.generation) break;
-            await this.receive(signal);
-            this.cursor = signal.seq;
+            this.cursor = Math.max(this.cursor, signal.seq);
+            try {
+              await this.receive(signal);
+            } catch {
+              /* isolate single malformed/stale signal so cursor advances */
+            }
           }
           if (Date.now() > this.nextConfig) {
             this.nextConfig = Date.now() + 30_000;
@@ -254,7 +266,11 @@ export class CallClient {
       );
     try {
       return await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
         video: video
           ? {
               width: { ideal: 640 },

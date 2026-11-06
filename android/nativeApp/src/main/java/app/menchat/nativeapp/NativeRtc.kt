@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.media.MediaRecorder
 import android.os.Build
 import java.util.UUID
 import kotlin.coroutines.resume
@@ -14,6 +15,41 @@ import kotlinx.coroutines.channels.Channel
 import org.json.JSONObject
 import org.webrtc.*
 import org.webrtc.audio.JavaAudioDeviceModule
+
+internal fun audioConstraints(noiseSuppression: Boolean) =
+    MediaConstraints().apply {
+        mandatory.add(MediaConstraints.KeyValuePair("googEchoCancellation", "true"))
+        mandatory.add(MediaConstraints.KeyValuePair("googAutoGainControl", "true"))
+        mandatory.add(MediaConstraints.KeyValuePair("googHighpassFilter", "true"))
+        mandatory.add(
+            MediaConstraints.KeyValuePair(
+                "googNoiseSuppression",
+                if (noiseSuppression) "true" else "false",
+            )
+        )
+        optional.add(MediaConstraints.KeyValuePair("googEchoCancellation2", "true"))
+        optional.add(MediaConstraints.KeyValuePair("googDAEchoCancellation", "true"))
+        optional.add(MediaConstraints.KeyValuePair("googAudioMirroring", "false"))
+    }
+
+internal fun hasExternalAudioDevice(audioManager: AudioManager): Boolean {
+    val externalTypes =
+        setOf(
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+            AudioDeviceInfo.TYPE_BLE_HEADSET,
+            AudioDeviceInfo.TYPE_BLE_SPEAKER,
+            AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+            AudioDeviceInfo.TYPE_USB_HEADSET,
+            AudioDeviceInfo.TYPE_USB_DEVICE,
+        )
+    return runCatching {
+            audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {
+                it.type in externalTypes
+            }
+        }
+        .getOrDefault(false)
+}
 
 /** Tracks and renderer ownership stay here; no SDP, ICE or media enters logs/storage. */
 internal class NativeRtc(
@@ -67,7 +103,7 @@ internal class NativeRtc(
     override var cameraOn = false
         private set
 
-    override var speakerOn = videoCall
+    override var speakerOn = videoCall && !hasExternalAudioDevice(audioManager)
         private set
 
     private val audioAttributes =
@@ -115,11 +151,25 @@ internal class NativeRtc(
     init {
         try {
             initialize(context)
+            require(
+                audioManager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            ) {
+                "O áudio está ocupado por outro aplicativo."
+            }
+            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+            applyAudioRoute(speakerOn)
             egl = EglBase.create()
             adm =
                 JavaAudioDeviceModule.builder(context)
-                    .setUseHardwareAcousticEchoCanceler(true)
-                    .setUseHardwareNoiseSuppressor(noiseSuppression)
+                    .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+                    .setAudioAttributes(audioAttributes)
+                    .setUseHardwareAcousticEchoCanceler(
+                        JavaAudioDeviceModule.isBuiltInAcousticEchoCancelerSupported()
+                    )
+                    .setUseHardwareNoiseSuppressor(
+                        noiseSuppression &&
+                            JavaAudioDeviceModule.isBuiltInNoiseSuppressorSupported()
+                    )
                     .createAudioDeviceModule()
             factory =
                 PeerConnectionFactory.builder()
@@ -129,15 +179,8 @@ internal class NativeRtc(
                     )
                     .setVideoDecoderFactory(DefaultVideoDecoderFactory(egl.eglBaseContext))
                     .createPeerConnectionFactory()
-            audioSource = factory.createAudioSource(MediaConstraints())
+            audioSource = factory.createAudioSource(audioConstraints(noiseSuppression))
             audioTrack = factory.createAudioTrack("menchat-audio", audioSource)
-            require(
-                audioManager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-            ) {
-                "O áudio está ocupado por outro aplicativo."
-            }
-            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-            route(speakerOn)
             if (videoCall) {
                 videoSource = factory.createVideoSource(false)
                 localVideo = factory.createVideoTrack("menchat-video", videoSource)
@@ -178,6 +221,7 @@ internal class NativeRtc(
         PeerConnection.RTCConfiguration(configuration.servers).apply {
             bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+            continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
         }
 
     override fun renew(ice: CallIce) {
@@ -290,6 +334,10 @@ internal class NativeRtc(
             if (videoCall) 350_000 else 48_000,
             if (videoCall) 700_000 else 96_000,
         )
+        peer.reconnect = scope.launch {
+            delay(6000)
+            if (peers[member.id] === peer && !peer.connected) restart(member.id)
+        }
     }
 
     private fun enqueue(to: String, kind: String, payload: JSONObject) {
@@ -398,53 +446,70 @@ internal class NativeRtc(
         if (closed || peer.device != signal.device) return
         val payload = signal.payload
         val negotiation = payload.optString("negotiation")
-        if (signal.kind == "restart") {
-            if (actor < signal.sender) offer(signal.sender, true)
-            return
-        }
-        if (signal.kind == "ice") {
-            val candidate =
-                IceCandidate(
-                    payload.optional("sdpMid"),
-                    payload.getInt("sdpMLineIndex"),
-                    payload.getString("candidate"),
-                )
-            if (peer.remoteNegotiation == negotiation && peer.pc.remoteDescription != null)
-                peer.pc.addIceCandidate(candidate)
-            else if (peer.pending.size < 5) {
-                val items = peer.pending.getOrPut(negotiation) { mutableListOf() }
-                if (items.size < 80) items += candidate
+        try {
+            if (signal.kind == "restart") {
+                if (actor < signal.sender) offer(signal.sender, true)
+                return
             }
-            return
+            if (signal.kind == "ice") {
+                val candidate =
+                    IceCandidate(
+                        payload.optional("sdpMid"),
+                        payload.getInt("sdpMLineIndex"),
+                        payload.getString("candidate"),
+                    )
+                if (peer.remoteNegotiation == negotiation && peer.pc.remoteDescription != null)
+                    runCatching { peer.pc.addIceCandidate(candidate) }
+                else if (peer.pending.size < 5) {
+                    val items = peer.pending.getOrPut(negotiation) { mutableListOf() }
+                    if (items.size < 80) items += candidate
+                }
+                return
+            }
+            if (signal.kind == "offer" && signal.sender < actor) {
+                peer.negotiation = negotiation
+                if (peer.pc.signalingState() == PeerConnection.SignalingState.HAVE_LOCAL_OFFER) {
+                    runCatching {
+                        description(
+                            peer,
+                            SessionDescription(SessionDescription.Type.ROLLBACK, ""),
+                            true,
+                        )
+                    }
+                }
+                description(
+                    peer,
+                    SessionDescription(SessionDescription.Type.OFFER, payload.getString("sdp")),
+                    false,
+                )
+                peer.remoteNegotiation = negotiation
+                val answer = createSdp(peer, false)
+                description(peer, answer, true)
+                enqueue(
+                    signal.sender,
+                    "answer",
+                    JSONObject().put("negotiation", negotiation).put("sdp", answer.description),
+                )
+            } else if (
+                signal.kind == "answer" &&
+                    negotiation == peer.negotiation &&
+                    peer.pc.signalingState() == PeerConnection.SignalingState.HAVE_LOCAL_OFFER
+            ) {
+                description(
+                    peer,
+                    SessionDescription(SessionDescription.Type.ANSWER, payload.getString("sdp")),
+                    false,
+                )
+                peer.remoteNegotiation = negotiation
+            }
+            peer.pending.remove(peer.remoteNegotiation)?.forEach {
+                runCatching { peer.pc.addIceCandidate(it) }
+            }
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (_: Exception) {
+            failed("Não foi possível negociar a chamada. Tente reconectar.")
         }
-        if (signal.kind == "offer" && signal.sender < actor) {
-            peer.negotiation = negotiation
-            description(
-                peer,
-                SessionDescription(SessionDescription.Type.OFFER, payload.getString("sdp")),
-                false,
-            )
-            peer.remoteNegotiation = negotiation
-            val answer = createSdp(peer, false)
-            description(peer, answer, true)
-            enqueue(
-                signal.sender,
-                "answer",
-                JSONObject().put("negotiation", negotiation).put("sdp", answer.description),
-            )
-        } else if (
-            signal.kind == "answer" &&
-                negotiation == peer.negotiation &&
-                peer.pc.signalingState() == PeerConnection.SignalingState.HAVE_LOCAL_OFFER
-        ) {
-            description(
-                peer,
-                SessionDescription(SessionDescription.Type.ANSWER, payload.getString("sdp")),
-                false,
-            )
-            peer.remoteNegotiation = negotiation
-        }
-        peer.pending.remove(peer.remoteNegotiation)?.forEach { peer.pc.addIceCandidate(it) }
     }
 
     override fun microphone(value: Boolean) {
@@ -531,7 +596,7 @@ internal class NativeRtc(
     }
 
     @Suppress("DEPRECATION")
-    override fun route(speaker: Boolean) {
+    private fun applyAudioRoute(speaker: Boolean) {
         if (Build.VERSION.SDK_INT >= 31) {
             val kinds =
                 if (speaker) listOf(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)
@@ -539,7 +604,11 @@ internal class NativeRtc(
                     listOf(
                         AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
                         AudioDeviceInfo.TYPE_BLE_HEADSET,
+                        AudioDeviceInfo.TYPE_BLE_SPEAKER,
                         AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                        AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                        AudioDeviceInfo.TYPE_USB_HEADSET,
+                        AudioDeviceInfo.TYPE_USB_DEVICE,
                         AudioDeviceInfo.TYPE_BUILTIN_EARPIECE,
                     )
             val device = kinds.firstNotNullOfOrNull { kind ->
@@ -549,6 +618,10 @@ internal class NativeRtc(
             else audioManager.clearCommunicationDevice()
         } else audioManager.isSpeakerphoneOn = speaker
         speakerOn = speaker
+    }
+
+    override fun route(speaker: Boolean) {
+        applyAudioRoute(speaker)
         changed()
     }
 

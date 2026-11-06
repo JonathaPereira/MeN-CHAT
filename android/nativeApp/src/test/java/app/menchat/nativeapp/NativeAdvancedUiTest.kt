@@ -161,4 +161,51 @@ class NativeAdvancedUiTest {
         assertEquals("😀", emoji)
         assertTrue(closed)
     }
+
+    @Test
+    fun videoCallScreenMaximizesAndRestoresLocalAndRemoteParticipantScreens() {
+        val context = RuntimeEnvironment.getApplication()
+        val peerId = "10000000-0000-4000-8000-000000000002"
+        val calls = NativeCalls(context, Gateway(), NativePreferences(context))
+        val mutable: MutableStateFlow<NativeCallState> = ReflectionHelpers.getField(calls, "mutable")
+        val snapshot =
+            CallSnapshot(
+                CallHeader(
+                    "call-1",
+                    "thread-1",
+                    actor,
+                    true,
+                    "active",
+                    "joined",
+                    "2026-11-06T00:00:00Z",
+                ),
+                listOf(
+                    CallMember(actor, "Pessoa", null, "joined", "dev-1", true, true),
+                    CallMember(peerId, "Ana", null, "joined", "dev-2", true, true),
+                ),
+            )
+        mutable.value =
+            NativeCallState(
+                ready = true,
+                active = snapshot,
+                mic = true,
+                video = true,
+                speaker = true,
+                connected = setOf(peerId),
+                expanded = true,
+            )
+        ui.setContent {
+            val callState by calls.state.collectAsState()
+            MenChatTheme(true) {
+                NativeCallScreen(calls, callState, actor) { _, _ -> }
+            }
+        }
+        ui.onNodeWithText("Maximizar minha tela").performScrollTo().performClick()
+        ui.onNodeWithText("Você · tela maximizada").assertIsDisplayed()
+        ui.onNodeWithText("Maximizar tela de Ana").performClick()
+        ui.onNodeWithText("Ana · tela maximizada").assertIsDisplayed()
+        ui.onNodeWithText("Restaurar tela").performClick()
+        ui.onNodeWithText("Chamada de vídeo").assertIsDisplayed()
+        calls.close()
+    }
 }

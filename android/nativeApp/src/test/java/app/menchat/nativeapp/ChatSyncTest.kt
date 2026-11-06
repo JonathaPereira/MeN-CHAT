@@ -186,4 +186,41 @@ class ChatSyncTest {
             executor.shutdownNow()
         }
     }
+
+    @Test
+    fun selectingConversationDuringActivePollQueuesImmediateRefresh() = runBlocking {
+        val nextThread = "20000000-0000-4000-8000-000000000099"
+        val nextMessage = "30000000-0000-4000-8000-000000000099"
+        val bothInbox =
+            """[{"id":"$thread","name":"Contato","can_send":true,"kind":"private","unread_count":0},{"id":"$nextThread","name":"Outro","can_send":true,"kind":"private","unread_count":1}]"""
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(bothInbox)
+                .addHeader("Content-Type", "application/json")
+                .setBodyDelay(150, TimeUnit.MILLISECONDS)
+        )
+        response(bothInbox)
+        response(
+            """[{"id":"$nextMessage","seq":7,"sender_id":"$actor","body":"Mensagem da nova conversa","created_at":"2026-01-01T12:05:00Z","attachment_id":null,"reply_to":null,"deleted_at":null}]"""
+        )
+        response("""[{"id":"$nextMessage","deleted_at":null}]""")
+        response("[]")
+        receipts()
+
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            val job = executor.submit { runBlocking { model.refresh() } }
+            assertNotNull(server.takeRequest(2, TimeUnit.SECONDS))
+            model.select(Conversation(nextThread, "Outro", false, true, "", 1))
+            job.get(5, TimeUnit.SECONDS)
+            assertEquals(nextThread, model.state.value.selected?.id)
+            assertEquals(
+                listOf("Mensagem da nova conversa"),
+                model.state.value.messages.map { it.text },
+            )
+        } finally {
+            executor.shutdownNow()
+        }
+    }
 }

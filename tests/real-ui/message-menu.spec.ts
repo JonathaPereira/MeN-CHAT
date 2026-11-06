@@ -63,7 +63,7 @@ test("instalar no celular abre instruções mesmo sem oferta automática", async
   await expect(dialog.getByText(/Android:/)).toBeVisible();
   await expect(
     dialog.getByRole("link", { name: /Baixar APK Android/ }),
-  ).toHaveAttribute("href", "/downloads/menchat-3.0.1.apk");
+  ).toHaveAttribute("href", "/downloads/menchat-3.0.2.apk");
 });
 
 test("push informa configuração pendente sem pedir permissão antes da hora", async ({ page }) => {

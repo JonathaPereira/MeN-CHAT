@@ -151,6 +151,8 @@ class NativeCallsTest {
         var configEntered: CountDownLatch? = null
         var release: CountDownLatch? = null
         var failure: Exception? = null
+        var members: List<CallMember> = emptyList()
+        var queuedSignals: List<CallSignal> = emptyList()
         val left = CopyOnWriteArrayList<String>()
 
         override fun configuration(): CallIce {
@@ -181,11 +183,11 @@ class NativeCallsTest {
             failure?.let { throw it }
             return CallSnapshot(
                 CallHeader(id, thread, actor, video, "active", null, "2026-11-05T00:00:00Z"),
-                emptyList(),
+                members,
             )
         }
 
-        override fun signals(id: String, after: Long) = emptyList<CallSignal>()
+        override fun signals(id: String, after: Long) = queuedSignals.filter { it.seq > after }
 
         override fun signal(
             call: String,
@@ -217,6 +219,7 @@ class NativeCallsTest {
         override var cameraOn = video
         override var speakerOn = video
         override val localVideo: VideoTrack? = null
+        val receivedSeqs = CopyOnWriteArrayList<Long>()
 
         override fun connected() = emptySet<String>()
 
@@ -224,7 +227,10 @@ class NativeCallsTest {
 
         override fun reconcile(members: List<CallMember>) {}
 
-        override suspend fun receive(signal: CallSignal) {}
+        override suspend fun receive(signal: CallSignal) {
+            if (signal.kind == "broken") throw IllegalStateException("corrupted signal")
+            receivedSeqs += signal.seq
+        }
 
         override fun renew(ice: CallIce) {}
 
@@ -256,5 +262,72 @@ class NativeCallsTest {
         override fun close() {
             closed = true
         }
+    }
+
+    @Test
+    fun audioConstraintsEnforceEchoCancellationAutoGainAndHighpassFilter() {
+        val withNoise = audioConstraints(true)
+        val mandatory = withNoise.mandatory.associate { it.key to it.value }
+        val optional = withNoise.optional.associate { it.key to it.value }
+        assertEquals("true", mandatory["googEchoCancellation"])
+        assertEquals("true", mandatory["googAutoGainControl"])
+        assertEquals("true", mandatory["googHighpassFilter"])
+        assertEquals("true", mandatory["googNoiseSuppression"])
+        assertEquals("false", optional["googAudioMirroring"])
+
+        val withoutNoise = audioConstraints(false)
+        val mandatoryNoNs = withoutNoise.mandatory.associate { it.key to it.value }
+        assertEquals("true", mandatoryNoNs["googEchoCancellation"])
+        assertEquals("false", mandatoryNoNs["googNoiseSuppression"])
+    }
+
+    @Test
+    fun maximizeTogglesLocalAndRemoteVideoAndResetsWhenCameraTurnsOff() {
+        val peerId = "10000000-0000-4000-8000-000000000002"
+        transport.members =
+            listOf(
+                CallMember(actor, "Você", null, "joined", "dev-1", true, true),
+                CallMember(peerId, "Ana", null, "joined", "dev-2", true, true),
+            )
+        calls.start(thread, true)
+        await { calls.state.value.active != null }
+        assertNull(calls.state.value.maximized)
+
+        calls.maximize("self")
+        assertEquals("self", calls.state.value.maximized)
+
+        calls.maximize(peerId)
+        assertEquals(peerId, calls.state.value.maximized)
+
+        calls.maximize(peerId)
+        assertNull(calls.state.value.maximized)
+
+        calls.maximize("self")
+        assertEquals("self", calls.state.value.maximized)
+        calls.camera()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertFalse(calls.state.value.video)
+        assertNull(calls.state.value.maximized)
+    }
+
+    @Test
+    fun malformedSignalDoesNotBlockSubsequentSignalsAndRecoveryClearsTransientError() {
+        val peerId = "10000000-0000-4000-8000-000000000002"
+        transport.queuedSignals =
+            listOf(
+                CallSignal(1, peerId, "dev-2", "broken", JSONObject()),
+                CallSignal(2, peerId, "dev-2", "offer", JSONObject()),
+            )
+        calls.start(thread, false)
+        await { calls.state.value.active != null }
+        transport.failure = IOException("transient glitch")
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(3))
+        await { calls.state.value.error != null }
+        assertTrue(calls.state.value.error!!.contains("instável"))
+
+        transport.failure = null
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+        await { calls.state.value.error == null && media!!.receivedSeqs.contains(2L) }
+        assertEquals(listOf(2L), media!!.receivedSeqs)
     }
 }
